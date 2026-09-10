@@ -10,6 +10,10 @@ class RendezVous {
   final int? idProfessionnel;
   final int? idDocteur;
 
+  // Nouveaux champs
+  final String statut;
+  final bool estFavori;
+
   RendezVous({
     this.idRendezVous,
     required this.dateRDV,
@@ -21,9 +25,10 @@ class RendezVous {
     this.lieu,
     this.idProfessionnel,
     this.idDocteur,
+    this.statut = 'Planifie',
+    this.estFavori = false,
   });
 
-  // Convertir l'objet en données SQLite
   Map<String, dynamic> toMap() {
     return {
       'idRendezVous': idRendezVous,
@@ -36,10 +41,13 @@ class RendezVous {
       'lieu': lieu,
       'idProfessionnel': idProfessionnel,
       'idDocteur': idDocteur,
+
+      // Nouveaux champs
+      'statut': statut,
+      'estFavori': estFavori ? 1 : 0,
     };
   }
 
-  // Créer un objet RendezVous depuis SQLite
   factory RendezVous.fromMap(Map<String, dynamic> map) {
     return RendezVous(
       idRendezVous: map['idRendezVous'],
@@ -52,6 +60,10 @@ class RendezVous {
       lieu: map['lieu'],
       idProfessionnel: map['idProfessionnel'],
       idDocteur: map['idDocteur'],
+
+      // Nouveaux champs
+      statut: map['statut'] ?? 'Planifie',
+      estFavori: (map['estFavori'] ?? 0) == 1,
     );
   }
 }

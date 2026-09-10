@@ -192,6 +192,193 @@ class _RendezVousPageState extends State<RendezVousPage> {
   }
 
   // ============================================================
+  // FAVORI
+  // ============================================================
+
+  Future<void> _changerFavori(
+    RendezVous rdv,
+  ) async {
+    if (rdv.idRendezVous == null) {
+      return;
+    }
+
+    final success = await _viewModel.modifierFavori(
+      rdv.idRendezVous!,
+      !rdv.estFavori,
+    );
+
+    if (!mounted) return;
+
+    if (!success && _viewModel.errorMessage != null) {
+      _afficherMessage(
+        _viewModel.errorMessage!,
+      );
+
+      _viewModel.clearError();
+    }
+  }
+
+  // ============================================================
+  // STATUT
+  // ============================================================
+
+  Future<void> _changerStatut(
+    RendezVous rdv,
+    String nouveauStatut,
+  ) async {
+    if (rdv.idRendezVous == null) {
+      return;
+    }
+
+    if (rdv.statut == nouveauStatut) {
+      return;
+    }
+
+    final success = await _viewModel.modifierStatut(
+      rdv.idRendezVous!,
+      nouveauStatut,
+    );
+
+    if (!mounted) return;
+
+    if (!success && _viewModel.errorMessage != null) {
+      _afficherMessage(
+        _viewModel.errorMessage!,
+      );
+
+      _viewModel.clearError();
+    }
+  }
+
+  // ============================================================
+  // AFFICHER LE MENU DU STATUT
+  // ============================================================
+
+  Future<void> _afficherMenuStatut(
+    BuildContext context,
+    RendezVous rdv,
+  ) async {
+    final selectedStatus = await showModalBottomSheet<String>(
+      context: context,
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Padding(
+                padding: EdgeInsets.all(16),
+                child: Text(
+                  'Modifier le statut',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              ListTile(
+                leading: const Icon(
+                  Icons.schedule,
+                  color: Colors.blue,
+                ),
+                title: const Text('Planifié'),
+                trailing: rdv.statut == 'Planifie'
+                    ? const Icon(Icons.check)
+                    : null,
+                onTap: () {
+                  Navigator.pop(
+                    context,
+                    'Planifie',
+                  );
+                },
+              ),
+              ListTile(
+                leading: const Icon(
+                  Icons.check_circle,
+                  color: Colors.green,
+                ),
+                title: const Text('Terminé'),
+                trailing: rdv.statut == 'Termine'
+                    ? const Icon(Icons.check)
+                    : null,
+                onTap: () {
+                  Navigator.pop(
+                    context,
+                    'Termine',
+                  );
+                },
+              ),
+              ListTile(
+                leading: const Icon(
+                  Icons.cancel,
+                  color: Colors.red,
+                ),
+                title: const Text('Annulé'),
+                trailing: rdv.statut == 'Annule'
+                    ? const Icon(Icons.check)
+                    : null,
+                onTap: () {
+                  Navigator.pop(
+                    context,
+                    'Annule',
+                  );
+                },
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (selectedStatus != null) {
+      await _changerStatut(
+        rdv,
+        selectedStatus,
+      );
+    }
+  }
+
+  // ============================================================
+  // AFFICHER LE STATUT
+  // ============================================================
+
+  String _afficherStatut(String statut) {
+    switch (statut) {
+      case 'Planifie':
+        return 'Planifié';
+
+      case 'Termine':
+        return 'Terminé';
+
+      case 'Annule':
+        return 'Annulé';
+
+      default:
+        return statut;
+    }
+  }
+
+  // ============================================================
+  // COULEUR DU STATUT
+  // ============================================================
+
+  Color _couleurStatut(String statut) {
+    switch (statut) {
+      case 'Planifie':
+        return Colors.blue;
+
+      case 'Termine':
+        return Colors.green;
+
+      case 'Annule':
+        return Colors.red;
+
+      default:
+        return Colors.grey;
+    }
+  }
+
+  // ============================================================
   // MESSAGE
   // ============================================================
 
@@ -208,7 +395,6 @@ class _RendezVousPageState extends State<RendezVousPage> {
   // ============================================================
 
   String _formaterDate(String date) {
-    // Nouveau format : yyyy-MM-dd
     try {
       final parsedDate = DateTime.parse(date);
 
@@ -217,7 +403,6 @@ class _RendezVousPageState extends State<RendezVousPage> {
       ).format(parsedDate);
     } catch (_) {}
 
-    // Ancien format éventuel : dd/MM/yyyy
     try {
       final parsedDate =
           DateFormat('dd/MM/yyyy').parse(date);
@@ -267,17 +452,15 @@ class _RendezVousPageState extends State<RendezVousPage> {
 
       final details = <String>[];
 
-      if (professionnel.societe != null &&
-          professionnel.societe!.trim().isNotEmpty) {
+      if (professionnel.societe.trim().isNotEmpty) {
         details.add(
-          professionnel.societe!.trim(),
+          professionnel.societe.trim(),
         );
       }
 
-      if (professionnel.fonction != null &&
-          professionnel.fonction!.trim().isNotEmpty) {
+      if (professionnel.fonction.trim().isNotEmpty) {
         details.add(
-          professionnel.fonction!.trim(),
+          professionnel.fonction.trim(),
         );
       }
 
@@ -379,6 +562,16 @@ class _RendezVousPageState extends State<RendezVousPage> {
               'Titre',
               rdv.titre,
             ),
+            _detailRow(
+              Icons.flag,
+              'Statut',
+              _afficherStatut(rdv.statut),
+            ),
+            _detailRow(
+              Icons.star,
+              'Favori',
+              rdv.estFavori ? 'Oui' : 'Non',
+            ),
             if (_afficherContact(rdv).isNotEmpty)
               _detailRow(
                 Icons.person,
@@ -450,6 +643,59 @@ class _RendezVousPageState extends State<RendezVousPage> {
   }
 
   // ============================================================
+  // BADGE STATUT
+  // ============================================================
+
+  Widget _buildStatutBadge(RendezVous rdv) {
+    final color = _couleurStatut(rdv.statut);
+
+    return InkWell(
+      onTap: () {
+        _afficherMenuStatut(
+          context,
+          rdv,
+        );
+      },
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: 10,
+          vertical: 6,
+        ),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.12),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: color.withOpacity(0.35),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              rdv.statut == 'Planifie'
+                  ? Icons.schedule
+                  : rdv.statut == 'Termine'
+                      ? Icons.check_circle
+                      : Icons.cancel,
+              size: 16,
+              color: color,
+            ),
+            const SizedBox(width: 5),
+            Text(
+              _afficherStatut(rdv.statut),
+              style: TextStyle(
+                color: color,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
   // TABLEAU
   // ============================================================
 
@@ -480,6 +726,22 @@ class _RendezVousPageState extends State<RendezVousPage> {
             turquoise.withOpacity(0.15),
           ),
           columns: const [
+            DataColumn(
+              label: Text(
+                'Favori',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            DataColumn(
+              label: Text(
+                'Statut',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
             DataColumn(
               label: Text(
                 'Date',
@@ -565,6 +827,31 @@ class _RendezVousPageState extends State<RendezVousPage> {
                   });
                 },
                 cells: [
+                  // FAVORI
+                  DataCell(
+                    IconButton(
+                      tooltip: rdv.estFavori
+                          ? 'Retirer des favoris'
+                          : 'Ajouter aux favoris',
+                      onPressed: () {
+                        _changerFavori(rdv);
+                      },
+                      icon: Icon(
+                        rdv.estFavori
+                            ? Icons.star
+                            : Icons.star_border,
+                        color: rdv.estFavori
+                            ? Colors.amber
+                            : Colors.grey,
+                      ),
+                    ),
+                  ),
+
+                  // STATUT
+                  DataCell(
+                    _buildStatutBadge(rdv),
+                  ),
+
                   // DATE
                   DataCell(
                     Text(
@@ -718,10 +1005,7 @@ class _RendezVousPageState extends State<RendezVousPage> {
                       alignment:
                           WrapAlignment.center,
                       children: [
-                        // ------------------------------
                         // NOUVEAU
-                        // ------------------------------
-
                         ElevatedButton.icon(
                           onPressed:
                               _nouveauRendezVous,
@@ -746,10 +1030,7 @@ class _RendezVousPageState extends State<RendezVousPage> {
                           ),
                         ),
 
-                        // ------------------------------
                         // MODIFIER
-                        // ------------------------------
-
                         ElevatedButton.icon(
                           onPressed:
                               _modifierRendezVous,
@@ -774,10 +1055,7 @@ class _RendezVousPageState extends State<RendezVousPage> {
                           ),
                         ),
 
-                        // ------------------------------
                         // SUPPRIMER
-                        // ------------------------------
-
                         ElevatedButton.icon(
                           onPressed:
                               _supprimerRendezVous,

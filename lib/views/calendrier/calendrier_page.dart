@@ -10,8 +10,7 @@ class CalendrierPage extends StatefulWidget {
   const CalendrierPage({super.key});
 
   @override
-  State<CalendrierPage> createState() =>
-      _CalendrierPageState();
+  State<CalendrierPage> createState() => _CalendrierPageState();
 }
 
 class _CalendrierPageState extends State<CalendrierPage> {
@@ -53,8 +52,7 @@ class _CalendrierPageState extends State<CalendrierPage> {
       final id = _selectedRendezVous!.idRendezVous;
 
       try {
-        _selectedRendezVous =
-            _viewModel.rendezVous.firstWhere(
+        _selectedRendezVous = _viewModel.rendezVous.firstWhere(
           (rdv) => rdv.idRendezVous == id,
         );
       } catch (_) {
@@ -128,11 +126,222 @@ class _CalendrierPageState extends State<CalendrierPage> {
   }
 
   // ============================================================
-  // AFFICHAGE DU CONTACT
+  // CONTACT
   // ============================================================
 
   String _afficherContact(RendezVous rdv) {
     return _viewModel.getContactName(rdv);
+  }
+
+  // ============================================================
+  // STATUT
+  // ============================================================
+
+  String _afficherStatut(String statut) {
+    switch (statut) {
+      case 'Planifie':
+        return 'Planifié';
+      case 'Termine':
+        return 'Terminé';
+      case 'Annule':
+        return 'Annulé';
+      default:
+        return statut;
+    }
+  }
+
+  Color _couleurStatut(String statut) {
+    switch (statut) {
+      case 'Planifie':
+        return Colors.blue;
+      case 'Termine':
+        return Colors.green;
+      case 'Annule':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  Widget _buildStatutBadge(String statut) {
+    final couleur = _couleurStatut(statut);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 10,
+        vertical: 6,
+      ),
+      decoration: BoxDecoration(
+        color: couleur.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: couleur.withValues(alpha: 0.4),
+        ),
+      ),
+      child: Text(
+        _afficherStatut(statut),
+        style: TextStyle(
+          color: couleur,
+          fontWeight: FontWeight.bold,
+          fontSize: 12,
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // FAVORI
+  // ============================================================
+
+  Future<void> _changerFavori(RendezVous rdv) async {
+    final nouveauFavori = !rdv.estFavori;
+
+    final success = await _viewModel.modifierFavori(
+      rdv.idRendezVous!,
+      nouveauFavori,
+    );
+
+    if (!mounted) return;
+
+    if (!success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _viewModel.errorMessage ??
+                'Erreur lors de la modification du favori.',
+          ),
+        ),
+      );
+
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          nouveauFavori
+              ? 'Rendez-vous ajouté aux favoris.'
+              : 'Rendez-vous retiré des favoris.',
+        ),
+        duration: const Duration(seconds: 1),
+      ),
+    );
+  }
+
+  // ============================================================
+  // MODIFICATION DU STATUT
+  // ============================================================
+
+  Future<void> _afficherMenuStatut(RendezVous rdv) async {
+    final statutSelectionne = await showModalBottomSheet<String>(
+      context: context,
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Padding(
+                padding: EdgeInsets.all(16),
+                child: Text(
+                  'Modifier le statut',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+
+              ListTile(
+                leading: const Icon(
+                  Icons.schedule,
+                  color: Colors.blue,
+                ),
+                title: const Text('Planifié'),
+                trailing: rdv.statut == 'Planifie'
+                    ? const Icon(Icons.check)
+                    : null,
+                onTap: () {
+                  Navigator.pop(
+                    context,
+                    'Planifie',
+                  );
+                },
+              ),
+
+              ListTile(
+                leading: const Icon(
+                  Icons.check_circle,
+                  color: Colors.green,
+                ),
+                title: const Text('Terminé'),
+                trailing: rdv.statut == 'Termine'
+                    ? const Icon(Icons.check)
+                    : null,
+                onTap: () {
+                  Navigator.pop(
+                    context,
+                    'Termine',
+                  );
+                },
+              ),
+
+              ListTile(
+                leading: const Icon(
+                  Icons.cancel,
+                  color: Colors.red,
+                ),
+                title: const Text('Annulé'),
+                trailing: rdv.statut == 'Annule'
+                    ? const Icon(Icons.check)
+                    : null,
+                onTap: () {
+                  Navigator.pop(
+                    context,
+                    'Annule',
+                  );
+                },
+              ),
+
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (statutSelectionne == null ||
+        statutSelectionne == rdv.statut) {
+      return;
+    }
+
+    final success = await _viewModel.modifierStatut(
+      rdv.idRendezVous!,
+      statutSelectionne,
+    );
+
+    if (!mounted) return;
+
+    if (!success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _viewModel.errorMessage ??
+                'Erreur lors de la modification du statut.',
+          ),
+        ),
+      );
+
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Statut modifié : ${_afficherStatut(statutSelectionne)}.',
+        ),
+        duration: const Duration(seconds: 1),
+      ),
+    );
   }
 
   // ============================================================
@@ -186,17 +395,14 @@ class _CalendrierPageState extends State<CalendrierPage> {
           color: Colors.orange,
           shape: BoxShape.circle,
         ),
-
         selectedDecoration: BoxDecoration(
           color: Color(0xFF159E9E),
           shape: BoxShape.circle,
         ),
-
         markerDecoration: BoxDecoration(
           color: Colors.red,
           shape: BoxShape.circle,
         ),
-
         markersMaxCount: 3,
       ),
 
@@ -217,7 +423,7 @@ class _CalendrierPageState extends State<CalendrierPage> {
   }
 
   // ============================================================
-  // INFORMATIONS DU RENDEZ-VOUS
+  // DÉTAILS DU RENDEZ-VOUS
   // ============================================================
 
   Widget _buildDetailsRendezVous() {
@@ -235,8 +441,7 @@ class _CalendrierPageState extends State<CalendrierPage> {
       child: Padding(
         padding: const EdgeInsets.all(14),
         child: Column(
-          crossAxisAlignment:
-              CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
               'Détails du rendez-vous',
@@ -270,6 +475,20 @@ class _CalendrierPageState extends State<CalendrierPage> {
               Icons.title,
               'Titre',
               rdv.titre,
+            ),
+
+            _detailRow(
+              Icons.info_outline,
+              'Statut',
+              _afficherStatut(rdv.statut),
+            ),
+
+            _detailRow(
+              rdv.estFavori
+                  ? Icons.star
+                  : Icons.star_border,
+              'Favori',
+              rdv.estFavori ? 'Oui' : 'Non',
             ),
 
             if (_afficherContact(rdv).isNotEmpty)
@@ -402,12 +621,17 @@ class _CalendrierPageState extends State<CalendrierPage> {
             DataColumn(
               label: Text('Description'),
             ),
+            DataColumn(
+              label: Text('Favori'),
+            ),
+            DataColumn(
+              label: Text('Statut'),
+            ),
           ],
 
           rows: rdvs.map((rdv) {
             final isSelected =
-                _selectedRendezVous
-                        ?.idRendezVous ==
+                _selectedRendezVous?.idRendezVous ==
                     rdv.idRendezVous;
 
             return DataRow(
@@ -480,6 +704,40 @@ class _CalendrierPageState extends State<CalendrierPage> {
                       rdv.description ?? '',
                       overflow:
                           TextOverflow.ellipsis,
+                    ),
+                  ),
+                ),
+
+                // FAVORI
+                DataCell(
+                  IconButton(
+                    tooltip: rdv.estFavori
+                        ? 'Retirer des favoris'
+                        : 'Ajouter aux favoris',
+                    icon: Icon(
+                      rdv.estFavori
+                          ? Icons.star
+                          : Icons.star_border,
+                      color: rdv.estFavori
+                          ? Colors.amber
+                          : Colors.grey,
+                    ),
+                    onPressed: () {
+                      _changerFavori(rdv);
+                    },
+                  ),
+                ),
+
+                // STATUT
+                DataCell(
+                  InkWell(
+                    onTap: () {
+                      _afficherMenuStatut(rdv);
+                    },
+                    borderRadius:
+                        BorderRadius.circular(20),
+                    child: _buildStatutBadge(
+                      rdv.statut,
                     ),
                   ),
                 ),
@@ -672,132 +930,134 @@ class _CalendrierPageState extends State<CalendrierPage> {
       ),
 
       body: _viewModel.isLoading
-          ? const Center(
-              child: CircularProgressIndicator(),
-            )
-          : Column(
-              children: [
-                // -----------------------------
-                // CALENDRIER
-                // -----------------------------
+    ? const Center(
+        child: CircularProgressIndicator(),
+      )
+    : SafeArea(
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
+              // -----------------------------
+              // CALENDRIER
+              // -----------------------------
 
-                Padding(
-                  padding: const EdgeInsets.all(8),
-                  child: _buildCalendrier(),
+              Padding(
+                padding: const EdgeInsets.all(8),
+                child: _buildCalendrier(),
+              ),
+
+              // -----------------------------
+              // DATE SÉLECTIONNÉE
+              // -----------------------------
+
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 10,
                 ),
-
-                // -----------------------------
-                // DATE SÉLECTIONNÉE
-                // -----------------------------
-
-                Container(
-                  width: double.infinity,
-                  padding:
-                      const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 10,
-                  ),
-                  color:
-                      const Color(0xFFE8F7F7),
-                  child: Text(
-                    'Rendez-vous du ${DateFormat('dd/MM/yyyy').format(dateSelectionnee)}',
-                    style: const TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-
-                // -----------------------------
-                // TABLE
-                // -----------------------------
-
-                Expanded(
-                  child:
-                      _buildRendezVousTable(),
-                ),
-
-                // -----------------------------
-                // DÉTAILS
-                // -----------------------------
-
-                _buildDetailsRendezVous(),
-
-                // -----------------------------
-                // BOUTONS
-                // -----------------------------
-
-                Padding(
-                  padding:
-                      const EdgeInsets.fromLTRB(
-                    12,
-                    6,
-                    12,
-                    12,
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child:
-                            ElevatedButton.icon(
-                          onPressed:
-                              _ajouterRendezVous,
-                          icon:
-                              const Icon(Icons.add),
-                          label:
-                              const Text('Ajouter'),
-                          style:
-                              ElevatedButton.styleFrom(
-                            backgroundColor:
-                                const Color(
-                              0xFF159E9E,
-                            ),
-                            foregroundColor:
-                                Colors.white,
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(width: 8),
-
-                      Expanded(
-                        child:
-                            ElevatedButton.icon(
-                          onPressed:
-                              _modifierRendezVous,
-                          icon:
-                              const Icon(Icons.edit),
-                          label:
-                              const Text('Modifier'),
-                        ),
-                      ),
-
-                      const SizedBox(width: 8),
-
-                      Expanded(
-                        child:
-                            ElevatedButton.icon(
-                          onPressed:
-                              _supprimerRendezVous,
-                          icon: const Icon(
-                            Icons.delete,
-                          ),
-                          label:
-                              const Text('Supprimer'),
-                          style:
-                              ElevatedButton.styleFrom(
-                            backgroundColor:
-                                Colors.red,
-                            foregroundColor:
-                                Colors.white,
-                          ),
-                        ),
-                      ),
-                    ],
+                color: const Color(0xFFE8F7F7),
+                child: Text(
+                  'Rendez-vous du ${DateFormat('dd/MM/yyyy').format(dateSelectionnee)}',
+                  style: const TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-              ],
-            ),
+              ),
+
+              // -----------------------------
+              // TABLE
+              // -----------------------------
+
+              _buildRendezVousTable(),
+
+              // -----------------------------
+              // DÉTAILS
+              // -----------------------------
+
+              _buildDetailsRendezVous(),
+
+              // -----------------------------
+              // BOUTONS
+              // -----------------------------
+
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  12,
+                  6,
+                  12,
+                  12,
+                ),
+                child: Padding(
+  padding: const EdgeInsets.fromLTRB(
+    12,
+    6,
+    12,
+    12,
+  ),
+  child: Row(
+    children: [
+      Expanded(
+        child: ElevatedButton.icon(
+          onPressed: _ajouterRendezVous,
+          icon: const Icon(Icons.add, size: 18),
+          label: const Text(
+            'Ajouter',
+            style: TextStyle(fontSize: 13),
+          ),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF159E9E),
+            foregroundColor: Colors.white,
+            minimumSize: const Size(0, 42),
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+          ),
+        ),
+      ),
+
+      const SizedBox(width: 6),
+
+      Expanded(
+        child: ElevatedButton.icon(
+          onPressed: _modifierRendezVous,
+          icon: const Icon(Icons.edit, size: 18),
+          label: const Text(
+            'Modifier',
+            style: TextStyle(fontSize: 13),
+          ),
+          style: ElevatedButton.styleFrom(
+            minimumSize: const Size(0, 42),
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+          ),
+        ),
+      ),
+
+      const SizedBox(width: 6),
+
+      Expanded(
+        child: ElevatedButton.icon(
+          onPressed: _supprimerRendezVous,
+          icon: const Icon(Icons.delete, size: 18),
+          label: const Text(
+            'Supprimer',
+            style: TextStyle(fontSize: 13),
+          ),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.red,
+            foregroundColor: Colors.white,
+            minimumSize: const Size(0, 42),
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+          ),
+        ),
+      ),
+    ],
+  ),
+),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

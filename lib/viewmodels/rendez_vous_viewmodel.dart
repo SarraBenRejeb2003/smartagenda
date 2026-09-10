@@ -267,4 +267,43 @@ class RendezVousViewModel extends ChangeNotifier {
 
     notifyListeners();
   }
+  Future<bool> modifierFavori(
+  int id,
+  bool estFavori,
+) async {
+  try {
+    await _repository.updateFavoriRendezVous(
+      id,
+      estFavori,
+    );
+
+    await loadData();
+    return true;
+  } catch (e) {
+    _errorMessage =
+        'Erreur lors de la modification du favori.';
+    notifyListeners();
+    return false;
+  }
+}
+
+Future<bool> modifierStatut(
+  int id,
+  String statut,
+) async {
+  try {
+    await _repository.updateStatutRendezVous(
+      id,
+      statut,
+    );
+
+    await loadData();
+    return true;
+  } catch (e) {
+    _errorMessage =
+        'Erreur lors de la modification du statut.';
+    notifyListeners();
+    return false;
+  }
+}
 }

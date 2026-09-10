@@ -39,6 +39,8 @@ class _RendezVousEditPageState
 
   int? _selectedProfessionnelId;
   int? _selectedDocteurId;
+  String _statut = 'Planifie';
+bool _estFavori = false;
 
   bool get _isEditing => widget.rendezVous != null;
 
@@ -80,6 +82,8 @@ class _RendezVousEditPageState
 
       _selectedDocteurId =
           rdv.idDocteur;
+      _statut = rdv.statut;
+_estFavori = rdv.estFavori;
     } else if (widget.initialDate != null) {
       _selectedDate = widget.initialDate!;
     }
@@ -289,6 +293,8 @@ class _RendezVousEditPageState
           _selectedProfessionnelId,
       idDocteur:
           _selectedDocteurId,
+          statut: _statut,
+estFavori: _estFavori,
     );
 
     final bool success;
@@ -398,8 +404,40 @@ class _RendezVousEditPageState
 
               const SizedBox(height: 16),
 
-              InkWell(
-                onTap: _selectDate,
+              DropdownButtonFormField<String>(
+  value: _statut,
+  decoration: const InputDecoration(
+    labelText: 'Statut',
+    border: OutlineInputBorder(),
+    prefixIcon: Icon(Icons.flag_outlined),
+  ),
+  items: const [
+    DropdownMenuItem(
+      value: 'Planifie',
+      child: Text('Planifié'),
+    ),
+    DropdownMenuItem(
+      value: 'Termine',
+      child: Text('Terminé'),
+    ),
+    DropdownMenuItem(
+      value: 'Annule',
+      child: Text('Annulé'),
+    ),
+  ],
+  onChanged: (value) {
+    if (value == null) return;
+
+    setState(() {
+      _statut = value;
+    });
+  },
+),
+
+const SizedBox(height: 16),
+
+InkWell(
+  onTap: _selectDate,
                 child: InputDecorator(
                   decoration: const InputDecoration(
                     labelText: 'Date',
@@ -549,10 +587,29 @@ class _RendezVousEditPageState
                 ),
               ),
 
-              const SizedBox(height: 24),
+              SwitchListTile(
+  contentPadding: EdgeInsets.zero,
+  title: const Text('Ajouter aux favoris'),
+  subtitle: const Text(
+    'Marquer ce rendez-vous comme favori',
+  ),
+  secondary: Icon(
+    _estFavori
+        ? Icons.star
+        : Icons.star_border,
+  ),
+  value: _estFavori,
+  onChanged: (value) {
+    setState(() {
+      _estFavori = value;
+    });
+  },
+),
 
-              SizedBox(
-                height: 50,
+const SizedBox(height: 24),
+
+SizedBox(
+  height: 50,
                 child: ElevatedButton.icon(
                   onPressed: _viewModel.isSaving
                       ? null

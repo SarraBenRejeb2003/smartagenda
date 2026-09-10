@@ -64,4 +64,23 @@ class RendezVousRepository {
   Future<List<Docteur>> getDocteurs() {
     return _databaseHelper.getDocteurs();
   }
+  Future<int> updateFavoriRendezVous(
+  int id,
+  bool estFavori,
+) {
+  return _databaseHelper.updateFavoriRendezVous(
+    id,
+    estFavori,
+  );
+}
+
+Future<int> updateStatutRendezVous(
+  int id,
+  String statut,
+) {
+  return _databaseHelper.updateStatutRendezVous(
+    id,
+    statut,
+  );
+}
 }
