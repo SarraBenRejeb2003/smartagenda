@@ -1,53 +1,69 @@
 import 'package:flutter/material.dart';
 
-class ProfessionnelEditPage extends StatefulWidget {
-  final Map<String, String>? professionnel;
+import '../../models/docteur.dart';
+import '../../viewmodels/docteur_viewmodel.dart';
 
-  const ProfessionnelEditPage({
+class DocteurEditPage extends StatefulWidget {
+  final Map<String, String>? docteur;
+
+  const DocteurEditPage({
     super.key,
-    this.professionnel,
+    this.docteur,
   });
 
   @override
-  State<ProfessionnelEditPage> createState() =>
-      _ProfessionnelEditPageState();
+  State<DocteurEditPage> createState() {
+    return _DocteurEditPageState();
+  }
 }
 
-class _ProfessionnelEditPageState extends State<ProfessionnelEditPage> {
+class _DocteurEditPageState extends State<DocteurEditPage> {
+  late final DocteurViewModel _viewModel;
+
   final _formKey = GlobalKey<FormState>();
 
   final _nomController = TextEditingController();
-  final _societeController = TextEditingController();
-  final _professionController = TextEditingController();
+  final _specialiteController = TextEditingController();
+  final _adresseController = TextEditingController();
   final _telephoneController = TextEditingController();
-  final _emailController = TextEditingController();
 
-  bool get isEditing => widget.professionnel != null;
+  bool get isEditing => widget.docteur != null;
 
   @override
   void initState() {
     super.initState();
 
-    // If we are modifying an existing professional,
-    // fill the fields with its information.
-    if (widget.professionnel != null) {
-      _nomController.text = widget.professionnel!['nom'] ?? '';
-      _societeController.text = widget.professionnel!['societe'] ?? '';
-      _professionController.text =
-          widget.professionnel!['profession'] ?? '';
+    _viewModel = DocteurViewModel();
+
+    if (widget.docteur != null) {
+      _nomController.text = widget.docteur!['nom'] ?? '';
+      _specialiteController.text =
+          widget.docteur!['specialite'] ?? '';
+      _adresseController.text =
+          widget.docteur!['adresseCabinet'] ?? '';
       _telephoneController.text =
-          widget.professionnel!['telephone'] ?? '';
-      _emailController.text = widget.professionnel!['email'] ?? '';
+          widget.docteur!['telephone'] ?? '';
     }
+
+    _viewModel.addListener(_onViewModelChanged);
+  }
+
+  void _onViewModelChanged() {
+    if (!mounted) return;
+
+    setState(() {});
   }
 
   @override
   void dispose() {
+    _viewModel.removeListener(_onViewModelChanged);
+    _viewModel.dispose();
+
     _nomController.dispose();
-    _societeController.dispose();
-    _professionController.dispose();
+    _specialiteController.dispose();
+    _adresseController.dispose();
     _telephoneController.dispose();
-    _emailController.dispose();
+
     super.dispose();
   }
 
@@ -60,65 +76,58 @@ class _ProfessionnelEditPageState extends State<ProfessionnelEditPage> {
         backgroundColor: const Color(0xFF159E9E),
         foregroundColor: Colors.white,
         elevation: 0,
-
         title: Text(
-          isEditing ? 'Modifier Professionnel' : 'Professionnel',
-          style: const TextStyle(
-            fontSize: 25,
-          ),
+          isEditing ? 'Modifier Docteur' : 'Docteur',
+          style: const TextStyle(fontSize: 25),
         ),
       ),
 
       body: SafeArea(
         child: Form(
           key: _formKey,
-
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(
               horizontal: 16,
               vertical: 10,
             ),
-
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // NOM
                 _buildLabel('Nom *'),
 
                 _buildTextField(
                   controller: _nomController,
-                  hint: 'Nom du professionnel',
+                  hint: 'Nom du docteur',
                   validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
+                    if (value == null ||
+                        value.trim().isEmpty) {
                       return 'Le nom est obligatoire';
                     }
+
                     return null;
                   },
                 ),
 
                 const SizedBox(height: 15),
 
-                // SOCIETE
-                _buildLabel('Société'),
+                _buildLabel('Spécialité'),
 
                 _buildTextField(
-                  controller: _societeController,
-                  hint: 'Société',
+                  controller: _specialiteController,
+                  hint: 'Spécialité',
                 ),
 
                 const SizedBox(height: 15),
 
-                // PROFESSION
-                _buildLabel('Profession'),
+                _buildLabel('Adresse cabinet'),
 
                 _buildTextField(
-                  controller: _professionController,
-                  hint: 'Profession',
+                  controller: _adresseController,
+                  hint: 'Adresse du cabinet',
                 ),
 
                 const SizedBox(height: 15),
 
-                // TELEPHONE
                 _buildLabel('Téléphone'),
 
                 _buildTextField(
@@ -127,36 +136,36 @@ class _ProfessionnelEditPageState extends State<ProfessionnelEditPage> {
                   keyboardType: TextInputType.phone,
                 ),
 
-                const SizedBox(height: 15),
-
-                // EMAIL
-                _buildLabel('Email'),
-
-                _buildTextField(
-                  controller: _emailController,
-                  hint: 'Email',
-                  keyboardType: TextInputType.emailAddress,
-                ),
-
                 const SizedBox(height: 30),
 
-                // ENREGISTRER
                 SizedBox(
                   width: double.infinity,
                   height: 50,
                   child: ElevatedButton.icon(
-                    onPressed: _enregistrer,
-                    icon: const Icon(Icons.check),
-                    label: const Text(
-                      'Enregistrer',
-                      style: TextStyle(fontSize: 20),
+                    onPressed:
+                        _viewModel.isSaving
+                            ? null
+                            : _enregistrer,
+                    icon: _viewModel.isSaving
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : const Icon(Icons.check),
+                    label: Text(
+                      _viewModel.isSaving
+                          ? 'Enregistrement...'
+                          : 'Enregistrer',
+                      style: const TextStyle(fontSize: 20),
                     ),
                   ),
                 ),
 
                 const SizedBox(height: 10),
 
-                // ANNULER
                 SizedBox(
                   width: double.infinity,
                   height: 50,
@@ -165,9 +174,11 @@ class _ProfessionnelEditPageState extends State<ProfessionnelEditPage> {
                       backgroundColor: Colors.red,
                       foregroundColor: Colors.white,
                     ),
-                    onPressed: () {
-                      Navigator.pop(context);
-                    },
+                    onPressed: _viewModel.isSaving
+                        ? null
+                        : () {
+                            Navigator.pop(context);
+                          },
                     icon: const Icon(Icons.close),
                     label: const Text(
                       'Annuler',
@@ -209,18 +220,14 @@ class _ProfessionnelEditPageState extends State<ProfessionnelEditPage> {
       controller: controller,
       keyboardType: keyboardType,
       validator: validator,
-
       decoration: InputDecoration(
         hintText: hint,
-
         filled: true,
         fillColor: Colors.white,
-
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(5),
           borderSide: BorderSide.none,
         ),
-
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 12,
           vertical: 14,
@@ -229,22 +236,64 @@ class _ProfessionnelEditPageState extends State<ProfessionnelEditPage> {
     );
   }
 
-  void _enregistrer() {
-    // Check validation
+  Future<void> _enregistrer() async {
     if (!_formKey.currentState!.validate()) {
       return;
     }
 
-    // Create the professional data
-    final professionnel = <String, String>{
+    final docteur = Docteur(
+      idDocteur: _getExistingId(),
+      nom: _nomController.text.trim(),
+      specialite: _specialiteController.text.trim(),
+      adresseCabinet: _adresseController.text.trim(),
+      telephone: _telephoneController.text.trim(),
+    );
+
+    final bool success;
+
+    if (isEditing) {
+      success = await _viewModel.modifierDocteur(docteur);
+    } else {
+      success = await _viewModel.ajouterDocteur(docteur);
+    }
+
+    if (!mounted) return;
+
+    if (!success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _viewModel.errorMessage ??
+                'Une erreur est survenue.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    final result = <String, String>{
+      'idDocteur': _getExistingId()?.toString() ?? '',
       'nom': _nomController.text.trim(),
-      'societe': _societeController.text.trim(),
-      'profession': _professionController.text.trim(),
+      'specialite': _specialiteController.text.trim(),
+      'adresseCabinet':
+          _adresseController.text.trim(),
       'telephone': _telephoneController.text.trim(),
-      'email': _emailController.text.trim(),
     };
 
-    // Return the data to ProfessionnelsPage
-    Navigator.pop(context, professionnel);
+    Navigator.pop(context, result);
+  }
+
+  int? _getExistingId() {
+    if (!isEditing) {
+      return null;
+    }
+
+    final id = widget.docteur!['idDocteur'];
+
+    if (id == null || id.isEmpty) {
+      return null;
+    }
+
+    return int.tryParse(id);
   }
 }

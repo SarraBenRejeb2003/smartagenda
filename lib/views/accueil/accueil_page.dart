@@ -1,20 +1,43 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 
+import '../../viewmodels/accueil_viewmodel.dart';
 import '../professionnels/professionnels_page.dart';
 import '../docteurs/docteurs_page.dart';
 import '../calendrier/calendrier_page.dart';
 import '../rendez_vous/rendez_vous_page.dart';
 import '../rendez_vous/rendez_vous_edit_page.dart';
 
-class AccueilPage extends StatelessWidget {
+class AccueilPage extends StatefulWidget {
   const AccueilPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final today = DateTime.now();
-    final date = DateFormat('dd/MM/yyyy').format(today);
+  State<AccueilPage> createState() => _AccueilPageState();
+}
 
+class _AccueilPageState extends State<AccueilPage> {
+  late final AccueilViewModel _viewModel;
+
+  @override
+  void initState() {
+    super.initState();
+    _viewModel = AccueilViewModel();
+    _viewModel.addListener(_onViewModelChanged);
+  }
+
+  void _onViewModelChanged() {
+    if (!mounted) return;
+    setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _viewModel.removeListener(_onViewModelChanged);
+    _viewModel.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF159E9E),
       body: SafeArea(
@@ -65,7 +88,7 @@ class AccueilPage extends StatelessWidget {
               const SizedBox(height: 5),
 
               Text(
-                date,
+                _viewModel.dateAujourdhui,
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 25,
@@ -161,7 +184,10 @@ class AccueilPage extends StatelessWidget {
     required VoidCallback onTap,
   }) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 5),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 25,
+        vertical: 5,
+      ),
       child: SizedBox(
         width: double.infinity,
         child: InkWell(
@@ -171,12 +197,19 @@ class AccueilPage extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: 10),
             child: Row(
               children: [
-                Icon(icon, color: Colors.white, size: 35),
+                Icon(
+                  icon,
+                  color: Colors.white,
+                  size: 35,
+                ),
                 const SizedBox(width: 15),
                 Expanded(
                   child: Text(
                     text,
-                    style: const TextStyle(color: Colors.white, fontSize: 25),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 25,
+                    ),
                   ),
                 ),
               ],
@@ -184,12 +217,6 @@ class AccueilPage extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-
-  void _showComingSoon(BuildContext context, String page) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$page sera disponible prochainement.')),
     );
   }
 }

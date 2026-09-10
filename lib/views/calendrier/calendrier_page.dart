@@ -2,36 +2,32 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 
-import '../../database/database_helper.dart';
 import '../../models/rendez_vous.dart';
-import '../../models/professionnel.dart';
-import '../../models/docteur.dart';
+import '../../viewmodels/calendrier_viewmodel.dart';
 import '../rendez_vous/rendez_vous_edit_page.dart';
 
 class CalendrierPage extends StatefulWidget {
   const CalendrierPage({super.key});
 
   @override
-  State<CalendrierPage> createState() => _CalendrierPageState();
+  State<CalendrierPage> createState() =>
+      _CalendrierPageState();
 }
 
 class _CalendrierPageState extends State<CalendrierPage> {
-  final DatabaseHelper _databaseHelper = DatabaseHelper.instance;
+  late final CalendrierViewModel _viewModel;
 
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
 
   RendezVous? _selectedRendezVous;
 
-  List<RendezVous> rendezVous = [];
-  List<Professionnel> _professionnels = [];
-  List<Docteur> _docteurs = [];
-
-  bool isLoading = true;
-
   @override
   void initState() {
     super.initState();
+
+    _viewModel = CalendrierViewModel();
+    _viewModel.addListener(_onViewModelChanged);
 
     _selectedDay = DateTime(
       DateTime.now().year,
@@ -42,56 +38,39 @@ class _CalendrierPageState extends State<CalendrierPage> {
     _chargerDonnees();
   }
 
-  // ============================================================
-  // CHARGEMENT DES DONNÉES
-  // ============================================================
+  void _onViewModelChanged() {
+    if (!mounted) return;
+
+    setState(() {});
+  }
 
   Future<void> _chargerDonnees() async {
-    setState(() {
-      isLoading = true;
-    });
+    await _viewModel.loadData();
 
-    try {
-      final resultatsRdv = await _databaseHelper.getRendezVous();
-      final resultatsProfessionnels =
-          await _databaseHelper.getProfessionnels();
-      final resultatsDocteurs = await _databaseHelper.getDocteurs();
+    if (!mounted) return;
 
-      if (!mounted) return;
+    if (_selectedRendezVous != null) {
+      final id = _selectedRendezVous!.idRendezVous;
 
-      setState(() {
-        rendezVous = resultatsRdv;
-        _professionnels = resultatsProfessionnels;
-        _docteurs = resultatsDocteurs;
-        isLoading = false;
+      try {
+        _selectedRendezVous =
+            _viewModel.rendezVous.firstWhere(
+          (rdv) => rdv.idRendezVous == id,
+        );
+      } catch (_) {
+        _selectedRendezVous = null;
+      }
 
-        // Si le rendez-vous sélectionné existe toujours,
-        // on le retrouve après le rechargement.
-        if (_selectedRendezVous != null) {
-          final id = _selectedRendezVous!.idRendezVous;
-
-          try {
-            _selectedRendezVous = rendezVous.firstWhere(
-              (rdv) => rdv.idRendezVous == id,
-            );
-          } catch (_) {
-            _selectedRendezVous = null;
-          }
-        }
-      });
-    } catch (e) {
-      if (!mounted) return;
-
-      setState(() {
-        isLoading = false;
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Erreur lors du chargement : $e'),
-        ),
-      );
+      setState(() {});
     }
+  }
+
+  @override
+  void dispose() {
+    _viewModel.removeListener(_onViewModelChanged);
+    _viewModel.dispose();
+
+    super.dispose();
   }
 
   // ============================================================
@@ -99,12 +78,10 @@ class _CalendrierPageState extends State<CalendrierPage> {
   // ============================================================
 
   DateTime? _convertirDate(String date) {
-    // Format principal : yyyy-MM-dd
     try {
       return DateTime.parse(date);
     } catch (_) {}
 
-    // Ancien format éventuel : dd/MM/yyyy
     try {
       return DateFormat('dd/MM/yyyy').parse(date);
     } catch (_) {}
@@ -112,7 +89,10 @@ class _CalendrierPageState extends State<CalendrierPage> {
     return null;
   }
 
-  bool _memeJour(RendezVous rdv, DateTime jour) {
+  bool _memeJour(
+    RendezVous rdv,
+    DateTime jour,
+  ) {
     final date = _convertirDate(rdv.dateRDV);
 
     if (date == null) {
@@ -137,41 +117,14 @@ class _CalendrierPageState extends State<CalendrierPage> {
       return [];
     }
 
-    return rendezVous
-        .where((rdv) => _memeJour(rdv, _selectedDay!))
+    return _viewModel.rendezVous
+        .where(
+          (rdv) => _memeJour(
+            rdv,
+            _selectedDay!,
+          ),
+        )
         .toList();
-  }
-
-  // ============================================================
-  // RECHERCHE PROFESSIONNEL / DOCTEUR
-  // ============================================================
-
-  Professionnel? _getProfessionnel(int? id) {
-    if (id == null) {
-      return null;
-    }
-
-    for (final professionnel in _professionnels) {
-      if (professionnel.idProfessionnel == id) {
-        return professionnel;
-      }
-    }
-
-    return null;
-  }
-
-  Docteur? _getDocteur(int? id) {
-    if (id == null) {
-      return null;
-    }
-
-    for (final docteur in _docteurs) {
-      if (docteur.idDocteur == id) {
-        return docteur;
-      }
-    }
-
-    return null;
   }
 
   // ============================================================
@@ -179,48 +132,7 @@ class _CalendrierPageState extends State<CalendrierPage> {
   // ============================================================
 
   String _afficherContact(RendezVous rdv) {
-    if (rdv.typeRDV == 'Professionnel') {
-      final professionnel = _getProfessionnel(rdv.idProfessionnel);
-
-      if (professionnel == null) {
-        return '';
-      }
-
-      final details = <String>[];
-
-      if (professionnel.societe != null &&
-          professionnel.societe!.trim().isNotEmpty) {
-        details.add(professionnel.societe!.trim());
-      }
-
-      if (professionnel.fonction != null &&
-          professionnel.fonction!.trim().isNotEmpty) {
-        details.add(professionnel.fonction!.trim());
-      }
-
-      if (details.isEmpty) {
-        return professionnel.nom;
-      }
-
-      return '${professionnel.nom} - ${details.join(' - ')}';
-    }
-
-    if (rdv.typeRDV == 'Medical') {
-      final docteur = _getDocteur(rdv.idDocteur);
-
-      if (docteur == null) {
-        return '';
-      }
-
-      if (docteur.specialite != null &&
-          docteur.specialite!.trim().isNotEmpty) {
-        return '${docteur.nom} - ${docteur.specialite!.trim()}';
-      }
-
-      return docteur.nom;
-    }
-
-    return 'Privé';
+    return _viewModel.getContactName(rdv);
   }
 
   // ============================================================
@@ -237,16 +149,27 @@ class _CalendrierPageState extends State<CalendrierPage> {
       focusedDay: _focusedDay,
 
       selectedDayPredicate: (day) {
-        return isSameDay(_selectedDay, day);
+        return isSameDay(
+          _selectedDay,
+          day,
+        );
       },
 
       eventLoader: (day) {
-        return rendezVous.where((rdv) {
-          return _memeJour(rdv, day);
-        }).toList();
+        return _viewModel.rendezVous
+            .where(
+              (rdv) => _memeJour(
+                rdv,
+                day,
+              ),
+            )
+            .toList();
       },
 
-      onDaySelected: (selectedDay, focusedDay) {
+      onDaySelected: (
+        selectedDay,
+        focusedDay,
+      ) {
         setState(() {
           _selectedDay = selectedDay;
           _focusedDay = focusedDay;
@@ -294,7 +217,7 @@ class _CalendrierPageState extends State<CalendrierPage> {
   }
 
   // ============================================================
-  // INFORMATIONS DU RENDEZ-VOUS SÉLECTIONNÉ
+  // INFORMATIONS DU RENDEZ-VOUS
   // ============================================================
 
   Widget _buildDetailsRendezVous() {
@@ -312,7 +235,8 @@ class _CalendrierPageState extends State<CalendrierPage> {
       child: Padding(
         padding: const EdgeInsets.all(14),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment:
+              CrossAxisAlignment.start,
           children: [
             const Text(
               'Détails du rendez-vous',
@@ -359,7 +283,8 @@ class _CalendrierPageState extends State<CalendrierPage> {
                 _afficherContact(rdv),
               ),
 
-            if (rdv.lieu != null && rdv.lieu!.trim().isNotEmpty)
+            if (rdv.lieu != null &&
+                rdv.lieu!.trim().isNotEmpty)
               _detailRow(
                 Icons.location_on,
                 'Lieu',
@@ -387,7 +312,8 @@ class _CalendrierPageState extends State<CalendrierPage> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 9),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
         children: [
           Icon(
             icon,
@@ -440,11 +366,13 @@ class _CalendrierPageState extends State<CalendrierPage> {
         child: DataTable(
           columnSpacing: 24,
 
-          headingRowColor: WidgetStateProperty.all(
+          headingRowColor:
+              WidgetStateProperty.all(
             const Color(0xFF159E9E),
           ),
 
-          headingTextStyle: const TextStyle(
+          headingTextStyle:
+              const TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
           ),
@@ -478,7 +406,8 @@ class _CalendrierPageState extends State<CalendrierPage> {
 
           rows: rdvs.map((rdv) {
             final isSelected =
-                _selectedRendezVous?.idRendezVous ==
+                _selectedRendezVous
+                        ?.idRendezVous ==
                     rdv.idRendezVous;
 
             return DataRow(
@@ -493,7 +422,9 @@ class _CalendrierPageState extends State<CalendrierPage> {
               cells: [
                 DataCell(
                   Text(
-                    _formaterDate(rdv.dateRDV),
+                    _formaterDate(
+                      rdv.dateRDV,
+                    ),
                   ),
                 ),
 
@@ -514,7 +445,8 @@ class _CalendrierPageState extends State<CalendrierPage> {
                     width: 160,
                     child: Text(
                       rdv.titre,
-                      overflow: TextOverflow.ellipsis,
+                      overflow:
+                          TextOverflow.ellipsis,
                     ),
                   ),
                 ),
@@ -524,7 +456,8 @@ class _CalendrierPageState extends State<CalendrierPage> {
                     width: 230,
                     child: Text(
                       _afficherContact(rdv),
-                      overflow: TextOverflow.ellipsis,
+                      overflow:
+                          TextOverflow.ellipsis,
                     ),
                   ),
                 ),
@@ -534,7 +467,8 @@ class _CalendrierPageState extends State<CalendrierPage> {
                     width: 150,
                     child: Text(
                       rdv.lieu ?? '',
-                      overflow: TextOverflow.ellipsis,
+                      overflow:
+                          TextOverflow.ellipsis,
                     ),
                   ),
                 ),
@@ -544,7 +478,8 @@ class _CalendrierPageState extends State<CalendrierPage> {
                     width: 250,
                     child: Text(
                       rdv.description ?? '',
-                      overflow: TextOverflow.ellipsis,
+                      overflow:
+                          TextOverflow.ellipsis,
                     ),
                   ),
                 ),
@@ -565,7 +500,8 @@ class _CalendrierPageState extends State<CalendrierPage> {
       context,
       MaterialPageRoute(
         builder: (context) => RendezVousEditPage(
-          initialDate: _selectedDay ?? _focusedDay,
+          initialDate:
+              _selectedDay ?? _focusedDay,
         ),
       ),
     );
@@ -625,27 +561,36 @@ class _CalendrierPageState extends State<CalendrierPage> {
 
     final rdv = _selectedRendezVous!;
 
-    final confirmation = await showDialog<bool>(
+    final confirmation =
+        await showDialog<bool>(
       context: context,
       builder: (context) {
         return AlertDialog(
           title: const Text(
             'Supprimer le rendez-vous',
           ),
+
           content: Text(
             'Voulez-vous vraiment supprimer le rendez-vous "${rdv.titre}" ?',
           ),
+
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.pop(context, false);
+                Navigator.pop(
+                  context,
+                  false,
+                );
               },
               child: const Text('Annuler'),
             ),
 
             ElevatedButton(
               onPressed: () {
-                Navigator.pop(context, true);
+                Navigator.pop(
+                  context,
+                  true,
+                );
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.red,
@@ -662,39 +607,37 @@ class _CalendrierPageState extends State<CalendrierPage> {
       return;
     }
 
-    try {
-      await _databaseHelper.deleteRendezVous(
-        rdv.idRendezVous!,
-      );
+    final success =
+        await _viewModel.supprimerRendezVous(
+      rdv.idRendezVous!,
+    );
 
-      if (!mounted) return;
+    if (!mounted) return;
 
-      setState(() {
-        _selectedRendezVous = null;
-      });
-
-      await _chargerDonnees();
-
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Rendez-vous supprimé avec succès.',
-          ),
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-
+    if (!success) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Erreur lors de la suppression : $e',
+            _viewModel.errorMessage ??
+                'Erreur lors de la suppression.',
           ),
         ),
       );
+
+      return;
     }
+
+    setState(() {
+      _selectedRendezVous = null;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Rendez-vous supprimé avec succès.',
+        ),
+      ),
+    );
   }
 
   // ============================================================
@@ -703,7 +646,8 @@ class _CalendrierPageState extends State<CalendrierPage> {
 
   @override
   Widget build(BuildContext context) {
-    final dateSelectionnee = _selectedDay ?? DateTime.now();
+    final dateSelectionnee =
+        _selectedDay ?? DateTime.now();
 
     return Scaffold(
       appBar: AppBar(
@@ -713,7 +657,10 @@ class _CalendrierPageState extends State<CalendrierPage> {
             fontWeight: FontWeight.bold,
           ),
         ),
-        backgroundColor: const Color(0xFF159E9E),
+
+        backgroundColor:
+            const Color(0xFF159E9E),
+
         foregroundColor: Colors.white,
 
         actions: [
@@ -724,7 +671,7 @@ class _CalendrierPageState extends State<CalendrierPage> {
         ],
       ),
 
-      body: isLoading
+      body: _viewModel.isLoading
           ? const Center(
               child: CircularProgressIndicator(),
             )
@@ -745,11 +692,13 @@ class _CalendrierPageState extends State<CalendrierPage> {
 
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(
+                  padding:
+                      const EdgeInsets.symmetric(
                     horizontal: 16,
                     vertical: 10,
                   ),
-                  color: const Color(0xFFE8F7F7),
+                  color:
+                      const Color(0xFFE8F7F7),
                   child: Text(
                     'Rendez-vous du ${DateFormat('dd/MM/yyyy').format(dateSelectionnee)}',
                     style: const TextStyle(
@@ -764,7 +713,8 @@ class _CalendrierPageState extends State<CalendrierPage> {
                 // -----------------------------
 
                 Expanded(
-                  child: _buildRendezVousTable(),
+                  child:
+                      _buildRendezVousTable(),
                 ),
 
                 // -----------------------------
@@ -778,7 +728,8 @@ class _CalendrierPageState extends State<CalendrierPage> {
                 // -----------------------------
 
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(
+                  padding:
+                      const EdgeInsets.fromLTRB(
                     12,
                     6,
                     12,
@@ -787,14 +738,22 @@ class _CalendrierPageState extends State<CalendrierPage> {
                   child: Row(
                     children: [
                       Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: _ajouterRendezVous,
-                          icon: const Icon(Icons.add),
-                          label: const Text('Ajouter'),
-                          style: ElevatedButton.styleFrom(
+                        child:
+                            ElevatedButton.icon(
+                          onPressed:
+                              _ajouterRendezVous,
+                          icon:
+                              const Icon(Icons.add),
+                          label:
+                              const Text('Ajouter'),
+                          style:
+                              ElevatedButton.styleFrom(
                             backgroundColor:
-                                const Color(0xFF159E9E),
-                            foregroundColor: Colors.white,
+                                const Color(
+                              0xFF159E9E,
+                            ),
+                            foregroundColor:
+                                Colors.white,
                           ),
                         ),
                       ),
@@ -802,23 +761,35 @@ class _CalendrierPageState extends State<CalendrierPage> {
                       const SizedBox(width: 8),
 
                       Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: _modifierRendezVous,
-                          icon: const Icon(Icons.edit),
-                          label: const Text('Modifier'),
+                        child:
+                            ElevatedButton.icon(
+                          onPressed:
+                              _modifierRendezVous,
+                          icon:
+                              const Icon(Icons.edit),
+                          label:
+                              const Text('Modifier'),
                         ),
                       ),
 
                       const SizedBox(width: 8),
 
                       Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: _supprimerRendezVous,
-                          icon: const Icon(Icons.delete),
-                          label: const Text('Supprimer'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.red,
-                            foregroundColor: Colors.white,
+                        child:
+                            ElevatedButton.icon(
+                          onPressed:
+                              _supprimerRendezVous,
+                          icon: const Icon(
+                            Icons.delete,
+                          ),
+                          label:
+                              const Text('Supprimer'),
+                          style:
+                              ElevatedButton.styleFrom(
+                            backgroundColor:
+                                Colors.red,
+                            foregroundColor:
+                                Colors.white,
                           ),
                         ),
                       ),

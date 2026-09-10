@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'database/database_helper.dart';
-import 'screens/accueil/accueil_page.dart';
+import 'views/accueil/accueil_page.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();

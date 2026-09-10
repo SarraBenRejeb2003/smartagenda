@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
-import '../../database/database_helper.dart';
 import '../../models/rendez_vous.dart';
 import '../../models/professionnel.dart';
 import '../../models/docteur.dart';
+import '../../viewmodels/rendez_vous_viewmodel.dart';
 import 'rendez_vous_edit_page.dart';
 
 class RendezVousPage extends StatefulWidget {
@@ -15,20 +15,32 @@ class RendezVousPage extends StatefulWidget {
 }
 
 class _RendezVousPageState extends State<RendezVousPage> {
-  final DatabaseHelper _databaseHelper = DatabaseHelper.instance;
-
-  List<RendezVous> rendezVous = [];
-  List<Professionnel> _professionnels = [];
-  List<Docteur> _docteurs = [];
+  late final RendezVousViewModel _viewModel;
 
   int? selectedIndex;
-
-  bool isLoading = true;
 
   @override
   void initState() {
     super.initState();
+
+    _viewModel = RendezVousViewModel();
+    _viewModel.addListener(_onViewModelChanged);
+
     _chargerDonnees();
+  }
+
+  @override
+  void dispose() {
+    _viewModel.removeListener(_onViewModelChanged);
+    _viewModel.dispose();
+
+    super.dispose();
+  }
+
+  void _onViewModelChanged() {
+    if (!mounted) return;
+
+    setState(() {});
   }
 
   // ============================================================
@@ -36,36 +48,17 @@ class _RendezVousPageState extends State<RendezVousPage> {
   // ============================================================
 
   Future<void> _chargerDonnees() async {
+    await _viewModel.loadData();
+
+    if (!mounted) return;
+
     setState(() {
-      isLoading = true;
+      selectedIndex = null;
     });
 
-    try {
-      final resultRdv = await _databaseHelper.getRendezVous();
-      final resultProfessionnels =
-          await _databaseHelper.getProfessionnels();
-      final resultDocteurs =
-          await _databaseHelper.getDocteurs();
-
-      if (!mounted) return;
-
-      setState(() {
-        rendezVous = resultRdv;
-        _professionnels = resultProfessionnels;
-        _docteurs = resultDocteurs;
-        selectedIndex = null;
-        isLoading = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-
-      setState(() {
-        isLoading = false;
-      });
-
-      _afficherMessage(
-        'Erreur lors du chargement des rendez-vous : $e',
-      );
+    if (_viewModel.errorMessage != null) {
+      _afficherMessage(_viewModel.errorMessage!);
+      _viewModel.clearError();
     }
   }
 
@@ -98,6 +91,12 @@ class _RendezVousPageState extends State<RendezVousPage> {
       return;
     }
 
+    final rendezVous = _viewModel.rendezVous;
+
+    if (selectedIndex! >= rendezVous.length) {
+      return;
+    }
+
     final RendezVous rdv = rendezVous[selectedIndex!];
 
     final result = await Navigator.push(
@@ -126,6 +125,12 @@ class _RendezVousPageState extends State<RendezVousPage> {
       return;
     }
 
+    final rendezVous = _viewModel.rendezVous;
+
+    if (selectedIndex! >= rendezVous.length) {
+      return;
+    }
+
     final RendezVous rdv = rendezVous[selectedIndex!];
 
     final confirmation = await showDialog<bool>(
@@ -133,12 +138,10 @@ class _RendezVousPageState extends State<RendezVousPage> {
       builder: (context) {
         return AlertDialog(
           title: const Text('Confirmation'),
-
           content: Text(
             'Voulez-vous vraiment supprimer le rendez-vous '
             '"${rdv.titre}" ?',
           ),
-
           actions: [
             TextButton(
               onPressed: () {
@@ -146,7 +149,6 @@ class _RendezVousPageState extends State<RendezVousPage> {
               },
               child: const Text('Annuler'),
             ),
-
             ElevatedButton(
               onPressed: () {
                 Navigator.pop(context, true);
@@ -166,26 +168,26 @@ class _RendezVousPageState extends State<RendezVousPage> {
       return;
     }
 
-    try {
-      if (rdv.idRendezVous != null) {
-        await _databaseHelper.deleteRendezVous(
-          rdv.idRendezVous!,
-        );
-      }
+    final success = await _viewModel.supprimerRendezVous(
+      rdv.idRendezVous!,
+    );
 
-      if (!mounted) return;
+    if (!mounted) return;
 
-      await _chargerDonnees();
+    if (success) {
+      setState(() {
+        selectedIndex = null;
+      });
 
       _afficherMessage(
         'Rendez-vous supprimé avec succès.',
       );
-    } catch (e) {
-      if (!mounted) return;
-
+    } else if (_viewModel.errorMessage != null) {
       _afficherMessage(
-        'Erreur lors de la suppression : $e',
+        _viewModel.errorMessage!,
       );
+
+      _viewModel.clearError();
     }
   }
 
@@ -249,53 +251,15 @@ class _RendezVousPageState extends State<RendezVousPage> {
   }
 
   // ============================================================
-  // RECHERCHER UN PROFESSIONNEL
-  // ============================================================
-
-  Professionnel? _getProfessionnel(int? id) {
-    if (id == null) {
-      return null;
-    }
-
-    for (final professionnel in _professionnels) {
-      if (professionnel.idProfessionnel == id) {
-        return professionnel;
-      }
-    }
-
-    return null;
-  }
-
-  // ============================================================
-  // RECHERCHER UN DOCTEUR
-  // ============================================================
-
-  Docteur? _getDocteur(int? id) {
-    if (id == null) {
-      return null;
-    }
-
-    for (final docteur in _docteurs) {
-      if (docteur.idDocteur == id) {
-        return docteur;
-      }
-    }
-
-    return null;
-  }
-
-  // ============================================================
   // AFFICHER LE CONTACT
   // ============================================================
 
   String _afficherContact(RendezVous rdv) {
-    // ----------------------------------------------------------
-    // RENDEZ-VOUS PROFESSIONNEL
-    // ----------------------------------------------------------
-
     if (rdv.typeRDV == 'Professionnel') {
-      final professionnel =
-          _getProfessionnel(rdv.idProfessionnel);
+      final Professionnel? professionnel =
+          _viewModel.getProfessionnel(
+        rdv.idProfessionnel,
+      );
 
       if (professionnel == null) {
         return '';
@@ -325,12 +289,11 @@ class _RendezVousPageState extends State<RendezVousPage> {
           '${details.join(' - ')}';
     }
 
-    // ----------------------------------------------------------
-    // RENDEZ-VOUS MÉDICAL
-    // ----------------------------------------------------------
-
     if (rdv.typeRDV == 'Medical') {
-      final docteur = _getDocteur(rdv.idDocteur);
+      final Docteur? docteur =
+          _viewModel.getDocteur(
+        rdv.idDocteur,
+      );
 
       if (docteur == null) {
         return '';
@@ -345,10 +308,6 @@ class _RendezVousPageState extends State<RendezVousPage> {
       return docteur.nom;
     }
 
-    // ----------------------------------------------------------
-    // RENDEZ-VOUS PRIVÉ
-    // ----------------------------------------------------------
-
     return 'Privé';
   }
 
@@ -360,6 +319,8 @@ class _RendezVousPageState extends State<RendezVousPage> {
     if (selectedIndex == null) {
       return const SizedBox.shrink();
     }
+
+    final rendezVous = _viewModel.rendezVous;
 
     if (selectedIndex! >= rendezVous.length) {
       return const SizedBox.shrink();
@@ -374,16 +335,12 @@ class _RendezVousPageState extends State<RendezVousPage> {
         16,
         12,
       ),
-
       elevation: 2,
-
       child: Padding(
         padding: const EdgeInsets.all(16),
-
         child: Column(
           crossAxisAlignment:
               CrossAxisAlignment.start,
-
           children: [
             const Row(
               children: [
@@ -391,9 +348,7 @@ class _RendezVousPageState extends State<RendezVousPage> {
                   Icons.event_note,
                   color: Color(0xFF159E9E),
                 ),
-
                 SizedBox(width: 8),
-
                 Text(
                   'Détails du rendez-vous',
                   style: TextStyle(
@@ -403,33 +358,27 @@ class _RendezVousPageState extends State<RendezVousPage> {
                 ),
               ],
             ),
-
             const SizedBox(height: 14),
-
             _detailRow(
               Icons.calendar_today,
               'Date',
               _formaterDate(rdv.dateRDV),
             ),
-
             _detailRow(
               Icons.access_time,
               'Horaire',
               '${rdv.heureDebut} - ${rdv.heureFin}',
             ),
-
             _detailRow(
               Icons.category,
               'Type',
               _afficherType(rdv.typeRDV),
             ),
-
             _detailRow(
               Icons.title,
               'Titre',
               rdv.titre,
             ),
-
             if (_afficherContact(rdv).isNotEmpty)
               _detailRow(
                 Icons.person,
@@ -440,7 +389,6 @@ class _RendezVousPageState extends State<RendezVousPage> {
                         : 'Contact',
                 _afficherContact(rdv),
               ),
-
             if (rdv.lieu != null &&
                 rdv.lieu!.trim().isNotEmpty)
               _detailRow(
@@ -448,7 +396,6 @@ class _RendezVousPageState extends State<RendezVousPage> {
                 'Lieu',
                 rdv.lieu!,
               ),
-
             if (rdv.description != null &&
                 rdv.description!.trim().isNotEmpty)
               _detailRow(
@@ -475,23 +422,18 @@ class _RendezVousPageState extends State<RendezVousPage> {
       padding: const EdgeInsets.only(
         bottom: 9,
       ),
-
       child: Row(
         crossAxisAlignment:
             CrossAxisAlignment.start,
-
         children: [
           Icon(
             icon,
             size: 20,
             color: const Color(0xFF159E9E),
           ),
-
           const SizedBox(width: 10),
-
           SizedBox(
             width: 105,
-
             child: Text(
               '$label :',
               style: const TextStyle(
@@ -499,7 +441,6 @@ class _RendezVousPageState extends State<RendezVousPage> {
               ),
             ),
           ),
-
           Expanded(
             child: Text(value),
           ),
@@ -513,6 +454,8 @@ class _RendezVousPageState extends State<RendezVousPage> {
   // ============================================================
 
   Widget _buildTableau() {
+    final rendezVous = _viewModel.rendezVous;
+
     if (rendezVous.isEmpty) {
       return const Center(
         child: Text(
@@ -529,16 +472,13 @@ class _RendezVousPageState extends State<RendezVousPage> {
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
-
       child: SingleChildScrollView(
         child: DataTable(
           columnSpacing: 30,
-
           headingRowColor:
               WidgetStateProperty.all(
             turquoise.withOpacity(0.15),
           ),
-
           columns: const [
             DataColumn(
               label: Text(
@@ -548,7 +488,6 @@ class _RendezVousPageState extends State<RendezVousPage> {
                 ),
               ),
             ),
-
             DataColumn(
               label: Text(
                 'Début',
@@ -557,7 +496,6 @@ class _RendezVousPageState extends State<RendezVousPage> {
                 ),
               ),
             ),
-
             DataColumn(
               label: Text(
                 'Fin',
@@ -566,7 +504,6 @@ class _RendezVousPageState extends State<RendezVousPage> {
                 ),
               ),
             ),
-
             DataColumn(
               label: Text(
                 'Type',
@@ -575,7 +512,6 @@ class _RendezVousPageState extends State<RendezVousPage> {
                 ),
               ),
             ),
-
             DataColumn(
               label: Text(
                 'Titre',
@@ -584,7 +520,6 @@ class _RendezVousPageState extends State<RendezVousPage> {
                 ),
               ),
             ),
-
             DataColumn(
               label: Text(
                 'Contact',
@@ -593,7 +528,6 @@ class _RendezVousPageState extends State<RendezVousPage> {
                 ),
               ),
             ),
-
             DataColumn(
               label: Text(
                 'Lieu',
@@ -602,7 +536,6 @@ class _RendezVousPageState extends State<RendezVousPage> {
                 ),
               ),
             ),
-
             DataColumn(
               label: Text(
                 'Description',
@@ -612,7 +545,6 @@ class _RendezVousPageState extends State<RendezVousPage> {
               ),
             ),
           ],
-
           rows: List.generate(
             rendezVous.length,
             (index) {
@@ -623,7 +555,6 @@ class _RendezVousPageState extends State<RendezVousPage> {
 
               return DataRow(
                 selected: isSelected,
-
                 onSelectChanged: (selected) {
                   setState(() {
                     if (selected == true) {
@@ -633,7 +564,6 @@ class _RendezVousPageState extends State<RendezVousPage> {
                     }
                   });
                 },
-
                 cells: [
                   // DATE
                   DataCell(
@@ -671,7 +601,6 @@ class _RendezVousPageState extends State<RendezVousPage> {
                   DataCell(
                     SizedBox(
                       width: 160,
-
                       child: Text(
                         rdv.titre,
                         overflow:
@@ -684,7 +613,6 @@ class _RendezVousPageState extends State<RendezVousPage> {
                   DataCell(
                     SizedBox(
                       width: 230,
-
                       child: Text(
                         _afficherContact(rdv),
                         overflow:
@@ -697,7 +625,6 @@ class _RendezVousPageState extends State<RendezVousPage> {
                   DataCell(
                     SizedBox(
                       width: 150,
-
                       child: Text(
                         rdv.lieu ?? '',
                         overflow:
@@ -710,7 +637,6 @@ class _RendezVousPageState extends State<RendezVousPage> {
                   DataCell(
                     SizedBox(
                       width: 250,
-
                       child: Text(
                         rdv.description ?? '',
                         overflow:
@@ -744,13 +670,10 @@ class _RendezVousPageState extends State<RendezVousPage> {
             fontWeight: FontWeight.bold,
           ),
         ),
-
         backgroundColor: turquoise,
-
         iconTheme: const IconThemeData(
           color: Colors.white,
         ),
-
         actions: [
           IconButton(
             icon: const Icon(
@@ -760,16 +683,13 @@ class _RendezVousPageState extends State<RendezVousPage> {
           ),
         ],
       ),
-
       body: Container(
         width: double.infinity,
         color: Colors.white,
-
-        child: isLoading
+        child: _viewModel.isLoading
             ? const Center(
                 child: CircularProgressIndicator(),
               )
-
             : Column(
                 children: [
                   // ==================================================
@@ -792,14 +712,11 @@ class _RendezVousPageState extends State<RendezVousPage> {
 
                   Padding(
                     padding: const EdgeInsets.all(20),
-
                     child: Wrap(
                       spacing: 12,
                       runSpacing: 12,
-
                       alignment:
                           WrapAlignment.center,
-
                       children: [
                         // ------------------------------
                         // NOUVEAU
@@ -808,23 +725,18 @@ class _RendezVousPageState extends State<RendezVousPage> {
                         ElevatedButton.icon(
                           onPressed:
                               _nouveauRendezVous,
-
                           icon: const Icon(
                             Icons.add,
                           ),
-
                           label: const Text(
                             'Nouveau',
                           ),
-
                           style:
                               ElevatedButton.styleFrom(
                             backgroundColor:
                                 turquoise,
-
                             foregroundColor:
                                 Colors.white,
-
                             padding:
                                 const EdgeInsets
                                     .symmetric(
@@ -841,23 +753,18 @@ class _RendezVousPageState extends State<RendezVousPage> {
                         ElevatedButton.icon(
                           onPressed:
                               _modifierRendezVous,
-
                           icon: const Icon(
                             Icons.edit,
                           ),
-
                           label: const Text(
                             'Modifier',
                           ),
-
                           style:
                               ElevatedButton.styleFrom(
                             backgroundColor:
                                 Colors.orange,
-
                             foregroundColor:
                                 Colors.white,
-
                             padding:
                                 const EdgeInsets
                                     .symmetric(
@@ -874,23 +781,18 @@ class _RendezVousPageState extends State<RendezVousPage> {
                         ElevatedButton.icon(
                           onPressed:
                               _supprimerRendezVous,
-
                           icon: const Icon(
                             Icons.delete,
                           ),
-
                           label: const Text(
                             'Supprimer',
                           ),
-
                           style:
                               ElevatedButton.styleFrom(
                             backgroundColor:
                                 Colors.red,
-
                             foregroundColor:
                                 Colors.white,
-
                             padding:
                                 const EdgeInsets
                                     .symmetric(
