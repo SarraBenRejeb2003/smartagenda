@@ -4,14 +4,19 @@ import '../models/rendez_vous.dart';
 import '../models/professionnel.dart';
 import '../models/docteur.dart';
 import '../repositories/rendez_vous_repository.dart';
+import '../services/notification_service.dart';
 
 class RendezVousViewModel extends ChangeNotifier {
   final RendezVousRepository _repository;
+  final NotificationService _notificationService;
 
   RendezVousViewModel({
     RendezVousRepository? repository,
-  }) : _repository =
-            repository ?? RendezVousRepository();
+    NotificationService? notificationService,
+  })  : _repository =
+            repository ?? RendezVousRepository(),
+        _notificationService =
+            notificationService ?? NotificationService.instance;
 
   List<RendezVous> _rendezVous = [];
   List<Professionnel> _professionnels = [];
@@ -20,6 +25,14 @@ class RendezVousViewModel extends ChangeNotifier {
   bool _isLoading = false;
   bool _isSaving = false;
   String? _errorMessage;
+
+  // ============================================================
+  // CONFIGURATION NOTIFICATION
+  // ============================================================
+
+  // Pour le moment : rappel 30 minutes avant le rendez-vous.
+  static const Duration _delaiNotification =
+      Duration(minutes: 30);
 
   // ============================================================
   // GETTERS
@@ -51,7 +64,8 @@ class RendezVousViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _rendezVous = await _repository.getRendezVous();
+      _rendezVous =
+          await _repository.getRendezVous();
 
       _professionnels =
           await _repository.getProfessionnels();
@@ -66,6 +80,66 @@ class RendezVousViewModel extends ChangeNotifier {
 
       notifyListeners();
     }
+  }
+
+  // ============================================================
+  // PROGRAMMER UNE NOTIFICATION
+  // ============================================================
+
+  Future<void> _programmerNotification(
+    RendezVous rendezVous,
+    int idRendezVous,
+  ) async {
+    // Pas de notification pour un rendez-vous annulé.
+    if (rendezVous.statut == 'Annule') {
+      return;
+    }
+
+    // Pas de notification pour un rendez-vous terminé.
+    if (rendezVous.statut == 'Termine') {
+      return;
+    }
+
+    final dateParts =
+        rendezVous.dateRDV.split('-');
+
+    final timeParts =
+        rendezVous.heureDebut.split(':');
+
+    final dateHeureRDV = DateTime(
+      int.parse(dateParts[0]),
+      int.parse(dateParts[1]),
+      int.parse(dateParts[2]),
+      int.parse(timeParts[0]),
+      int.parse(timeParts[1]),
+    );
+
+    final dateHeureNotification =
+        dateHeureRDV.subtract(
+      _delaiNotification,
+    );
+
+    // Si le rappel est déjà passé, on ne programme rien.
+    if (dateHeureNotification
+        .isBefore(DateTime.now())) {
+      return;
+    }
+
+    String body =
+        '${rendezVous.titre} à ${rendezVous.heureDebut}';
+
+    if (rendezVous.lieu != null &&
+        rendezVous.lieu!.trim().isNotEmpty) {
+      body +=
+          ' — ${rendezVous.lieu!.trim()}';
+    }
+
+    await _notificationService.scheduleNotification(
+      id: idRendezVous,
+      dateTime: dateHeureNotification,
+      title: 'Rappel de rendez-vous ⏰',
+      body: body,
+    );
   }
 
   // ============================================================
@@ -95,8 +169,16 @@ class RendezVousViewModel extends ChangeNotifier {
         return false;
       }
 
-      await _repository.insertRendezVous(
+      // L'insertion retourne l'ID du nouveau rendez-vous.
+      final id =
+          await _repository.insertRendezVous(
         rendezVous,
+      );
+
+      // On programme la notification avec cet ID.
+      await _programmerNotification(
+        rendezVous,
+        id,
       );
 
       await loadData();
@@ -146,6 +228,20 @@ class RendezVousViewModel extends ChangeNotifier {
         rendezVous,
       );
 
+      // On annule l'ancien rappel.
+      if (rendezVous.idRendezVous != null) {
+        await _notificationService
+            .cancelNotification(
+          rendezVous.idRendezVous!,
+        );
+
+        // Puis on programme le nouveau rappel.
+        await _programmerNotification(
+          rendezVous,
+          rendezVous.idRendezVous!,
+        );
+      }
+
       await loadData();
 
       return true;
@@ -174,6 +270,11 @@ class RendezVousViewModel extends ChangeNotifier {
 
     try {
       await _repository.deleteRendezVous(id);
+
+      // Le rendez-vous n'existe plus :
+      // son rappel doit également disparaître.
+      await _notificationService
+          .cancelNotification(id);
 
       await loadData();
 
@@ -267,43 +368,66 @@ class RendezVousViewModel extends ChangeNotifier {
 
     notifyListeners();
   }
+
+  // ============================================================
+  // FAVORI
+  // ============================================================
+
   Future<bool> modifierFavori(
-  int id,
-  bool estFavori,
-) async {
-  try {
-    await _repository.updateFavoriRendezVous(
-      id,
-      estFavori,
-    );
+    int id,
+    bool estFavori,
+  ) async {
+    try {
+      await _repository.updateFavoriRendezVous(
+        id,
+        estFavori,
+      );
 
-    await loadData();
-    return true;
-  } catch (e) {
-    _errorMessage =
-        'Erreur lors de la modification du favori.';
-    notifyListeners();
-    return false;
+      await loadData();
+
+      return true;
+    } catch (e) {
+      _errorMessage =
+          'Erreur lors de la modification du favori.';
+
+      notifyListeners();
+
+      return false;
+    }
   }
-}
 
-Future<bool> modifierStatut(
-  int id,
-  String statut,
-) async {
-  try {
-    await _repository.updateStatutRendezVous(
-      id,
-      statut,
-    );
+  // ============================================================
+  // STATUT
+  // ============================================================
 
-    await loadData();
-    return true;
-  } catch (e) {
-    _errorMessage =
-        'Erreur lors de la modification du statut.';
-    notifyListeners();
-    return false;
+  Future<bool> modifierStatut(
+    int id,
+    String statut,
+  ) async {
+    try {
+      await _repository.updateStatutRendezVous(
+        id,
+        statut,
+      );
+
+      // Si le rendez-vous devient annulé ou terminé,
+      // son rappel doit être supprimé.
+      if (statut == 'Annule' ||
+          statut == 'Termine') {
+        await _notificationService
+            .cancelNotification(id);
+      }
+
+      await loadData();
+
+      return true;
+    } catch (e) {
+      _errorMessage =
+          'Erreur lors de la modification du statut.';
+
+      notifyListeners();
+
+      return false;
+    }
   }
-}
 }

@@ -4,13 +4,18 @@ import '../models/rendez_vous.dart';
 import '../models/professionnel.dart';
 import '../models/docteur.dart';
 import '../repositories/rendez_vous_repository.dart';
+import '../services/notification_service.dart';
 
 class CalendrierViewModel extends ChangeNotifier {
   final RendezVousRepository _repository;
+  final NotificationService _notificationService;
 
   CalendrierViewModel({
     RendezVousRepository? repository,
-  }) : _repository = repository ?? RendezVousRepository();
+    NotificationService? notificationService,
+  })  : _repository = repository ?? RendezVousRepository(),
+        _notificationService =
+            notificationService ?? NotificationService.instance;
 
   List<RendezVous> _rendezVous = [];
   List<Professionnel> _professionnels = [];
@@ -56,6 +61,10 @@ class CalendrierViewModel extends ChangeNotifier {
 
     try {
       await _repository.deleteRendezVous(id);
+
+      // Annuler la notification associée au rendez-vous.
+      await _notificationService.cancelNotification(id);
+
       await loadData();
       return true;
     } catch (e) {
@@ -65,7 +74,8 @@ class CalendrierViewModel extends ChangeNotifier {
       return false;
     }
   }
-    Future<bool> modifierFavori(
+
+  Future<bool> modifierFavori(
     int id,
     bool estFavori,
   ) async {
@@ -100,6 +110,12 @@ class CalendrierViewModel extends ChangeNotifier {
         id,
         statut,
       );
+
+      // Si le rendez-vous est annulé ou terminé,
+      // son rappel ne doit plus être envoyé.
+      if (statut == 'Annule' || statut == 'Termine') {
+        await _notificationService.cancelNotification(id);
+      }
 
       await loadData();
 
@@ -169,7 +185,8 @@ class CalendrierViewModel extends ChangeNotifier {
     }
 
     if (rendezVous.typeRDV == 'Medical') {
-      final docteur = getDocteur(rendezVous.idDocteur);
+      final docteur =
+          getDocteur(rendezVous.idDocteur);
 
       if (docteur == null) {
         return '';

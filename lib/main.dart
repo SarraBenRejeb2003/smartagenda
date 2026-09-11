@@ -3,13 +3,14 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'database/database_helper.dart';
 import 'views/accueil/accueil_page.dart';
-
+import 'services/notification_service.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Initialise les données de date pour le français
   await initializeDateFormatting('fr_FR', null);
   await DatabaseHelper.instance.database;
+  await NotificationService.instance.initialize();
   runApp(const SmartAgendaApp());
 }
 

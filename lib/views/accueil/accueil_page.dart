@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-
+import '../../services/notification_service.dart';
 import '../../viewmodels/accueil_viewmodel.dart';
 import '../professionnels/professionnels_page.dart';
 import '../docteurs/docteurs_page.dart';
@@ -168,6 +168,25 @@ class _AccueilPageState extends State<AccueilPage> {
                   );
                 },
               ),
+              _menuButton(
+  context,
+  icon: Icons.alarm,
+  text: 'Tester notification programmée',
+  onTap: () async {
+    await NotificationService.instance
+        .scheduleTestNotification();
+
+    if (!context.mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Notification programmée dans 1 minute ⏰',
+        ),
+      ),
+    );
+  },
+),
 
               const SizedBox(height: 20),
             ],
