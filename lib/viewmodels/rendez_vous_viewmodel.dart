@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-
+import '../repositories/parametres_repository.dart';
 import '../models/rendez_vous.dart';
 import '../models/professionnel.dart';
 import '../models/docteur.dart';
@@ -9,15 +9,16 @@ import '../services/notification_service.dart';
 class RendezVousViewModel extends ChangeNotifier {
   final RendezVousRepository _repository;
   final NotificationService _notificationService;
-
+final ParametresRepository _parametresRepository;
   RendezVousViewModel({
     RendezVousRepository? repository,
     NotificationService? notificationService,
+    ParametresRepository? parametresRepository,
   })  : _repository =
             repository ?? RendezVousRepository(),
         _notificationService =
-            notificationService ?? NotificationService.instance;
-
+            notificationService ?? NotificationService.instance,
+_parametresRepository = parametresRepository ?? ParametresRepository();
   List<RendezVous> _rendezVous = [];
   List<Professionnel> _professionnels = [];
   List<Docteur> _docteurs = [];
@@ -25,14 +26,6 @@ class RendezVousViewModel extends ChangeNotifier {
   bool _isLoading = false;
   bool _isSaving = false;
   String? _errorMessage;
-
-  // ============================================================
-  // CONFIGURATION NOTIFICATION
-  // ============================================================
-
-  // Pour le moment : rappel 30 minutes avant le rendez-vous.
-  static const Duration _delaiNotification =
-      Duration(minutes: 30);
 
   // ============================================================
   // GETTERS
@@ -114,10 +107,15 @@ class RendezVousViewModel extends ChangeNotifier {
       int.parse(timeParts[1]),
     );
 
-    final dateHeureNotification =
-        dateHeureRDV.subtract(
-      _delaiNotification,
-    );
+    final parametres =
+    await _parametresRepository.getParametres();
+
+final delai = Duration(
+  minutes: parametres.delaiNotifDefaut,
+);
+
+final dateHeureNotification =
+    dateHeureRDV.subtract(delai);
 
     // Si le rappel est déjà passé, on ne programme rien.
     if (dateHeureNotification

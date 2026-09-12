@@ -1,14 +1,20 @@
+
 import 'package:flutter/material.dart';
-import '../../services/notification_service.dart';
+
+import '../../app_localizations.dart';
 import '../../viewmodels/accueil_viewmodel.dart';
 import '../professionnels/professionnels_page.dart';
 import '../docteurs/docteurs_page.dart';
 import '../calendrier/calendrier_page.dart';
 import '../rendez_vous/rendez_vous_page.dart';
 import '../rendez_vous/rendez_vous_edit_page.dart';
+import '../parametres/parametres_page.dart';
+import '../../app_settings.dart';
 
 class AccueilPage extends StatefulWidget {
-  const AccueilPage({super.key});
+  final AppSettings appSettings;
+
+  const AccueilPage({super.key, required this.appSettings});
 
   @override
   State<AccueilPage> createState() => _AccueilPageState();
@@ -38,8 +44,10 @@ class _AccueilPageState extends State<AccueilPage> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
+
     return Scaffold(
-      backgroundColor: const Color(0xFF159E9E),
+      backgroundColor: widget.appSettings.themeColor,
       body: SafeArea(
         child: SingleChildScrollView(
           child: Column(
@@ -76,9 +84,9 @@ class _AccueilPageState extends State<AccueilPage> {
               const SizedBox(height: 12),
 
               // Today's date
-              const Text(
-                "Aujourd'hui :",
-                style: TextStyle(
+              Text(
+                _translateToday(t),
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 25,
                   fontWeight: FontWeight.w500,
@@ -102,12 +110,13 @@ class _AccueilPageState extends State<AccueilPage> {
               _menuButton(
                 context,
                 icon: Icons.calendar_month,
-                text: 'Calendrier',
+                text: t.calendar,
                 onTap: () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => const CalendrierPage(),
+                      builder: (context) =>
+                          CalendrierPage(appSettings: widget.appSettings),
                     ),
                   );
                 },
@@ -116,12 +125,14 @@ class _AccueilPageState extends State<AccueilPage> {
               _menuButton(
                 context,
                 icon: Icons.event_note,
-                text: 'Rendez-vous du jour',
+                text: _translateTodayAppointments(t),
                 onTap: () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => const RendezVousPage(),
+                      builder: (context) => RendezVousPage(
+                        appSettings: widget.appSettings,
+                      ),
                     ),
                   );
                 },
@@ -130,12 +141,14 @@ class _AccueilPageState extends State<AccueilPage> {
               _menuButton(
                 context,
                 icon: Icons.add_circle_outline,
-                text: 'Ajouter RDV',
+                text: _translateAddAppointment(t),
                 onTap: () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => const RendezVousEditPage(),
+                      builder: (_) => RendezVousEditPage(
+                        appSettings: widget.appSettings,
+                      ),
                     ),
                   );
                 },
@@ -144,12 +157,14 @@ class _AccueilPageState extends State<AccueilPage> {
               _menuButton(
                 context,
                 icon: Icons.business_center,
-                text: 'Professionnels',
+                text: t.professional ,
                 onTap: () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => const ProfessionnelsPage(),
+                      builder: (context) => ProfessionnelsPage(
+                        appSettings: widget.appSettings,
+                      ),
                     ),
                   );
                 },
@@ -158,35 +173,33 @@ class _AccueilPageState extends State<AccueilPage> {
               _menuButton(
                 context,
                 icon: Icons.medical_services_outlined,
-                text: 'Docteurs',
+                text: t.doctor ,
                 onTap: () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => const DocteursPage(),
+                      builder: (context) => DocteursPage(
+                        appSettings: widget.appSettings,
+                      ),
                     ),
                   );
                 },
               ),
+
               _menuButton(
-  context,
-  icon: Icons.alarm,
-  text: 'Tester notification programmée',
-  onTap: () async {
-    await NotificationService.instance
-        .scheduleTestNotification();
-
-    if (!context.mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Notification programmée dans 1 minute ⏰',
-        ),
-      ),
-    );
-  },
-),
+                context,
+                icon: Icons.settings_outlined,
+                text: t.settings,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          ParametresPage(appSettings: widget.appSettings),
+                    ),
+                  );
+                },
+              ),
 
               const SizedBox(height: 20),
             ],
@@ -196,6 +209,42 @@ class _AccueilPageState extends State<AccueilPage> {
     );
   }
 
+  String _translateToday(AppLocalizations t) {
+    if (t.isEnglish) {
+      return 'Today:';
+    }
+
+    if (t.isArabic) {
+      return 'اليوم:';
+    }
+
+    return "Aujourd'hui :";
+  }
+
+  String _translateTodayAppointments(AppLocalizations t) {
+    if (t.isEnglish) {
+      return "Today's appointments";
+    }
+
+    if (t.isArabic) {
+      return 'مواعيد اليوم';
+    }
+
+    return 'Rendez-vous du jour';
+  }
+
+  String _translateAddAppointment(AppLocalizations t) {
+    if (t.isEnglish) {
+      return 'Add appointment';
+    }
+
+    if (t.isArabic) {
+      return 'إضافة موعد';
+    }
+
+    return 'Ajouter RDV';
+  }
+
   Widget _menuButton(
     BuildContext context, {
     required IconData icon,
@@ -203,10 +252,7 @@ class _AccueilPageState extends State<AccueilPage> {
     required VoidCallback onTap,
   }) {
     return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 25,
-        vertical: 5,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 5),
       child: SizedBox(
         width: double.infinity,
         child: InkWell(
@@ -216,11 +262,7 @@ class _AccueilPageState extends State<AccueilPage> {
             padding: const EdgeInsets.symmetric(vertical: 10),
             child: Row(
               children: [
-                Icon(
-                  icon,
-                  color: Colors.white,
-                  size: 35,
-                ),
+                Icon(icon, color: Colors.white, size: 35),
                 const SizedBox(width: 15),
                 Expanded(
                   child: Text(
@@ -239,3 +281,4 @@ class _AccueilPageState extends State<AccueilPage> {
     );
   }
 }
+

@@ -1,14 +1,18 @@
 import 'package:flutter/material.dart';
 
+import '../../app_settings.dart';
+import '../../app_localizations.dart';
 import '../../models/docteur.dart';
 import '../../viewmodels/docteur_viewmodel.dart';
 
 class DocteurEditPage extends StatefulWidget {
   final Map<String, String>? docteur;
+  final AppSettings appSettings;
 
   const DocteurEditPage({
     super.key,
     this.docteur,
+    required this.appSettings,
   });
 
   @override
@@ -69,15 +73,19 @@ class _DocteurEditPageState extends State<DocteurEditPage> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
+
     return Scaffold(
-      backgroundColor: const Color(0xFF159E9E),
+      backgroundColor: widget.appSettings.themeColor,
 
       appBar: AppBar(
-        backgroundColor: const Color(0xFF159E9E),
+        backgroundColor: widget.appSettings.themeColor,
         foregroundColor: Colors.white,
         elevation: 0,
         title: Text(
-          isEditing ? 'Modifier Docteur' : 'Docteur',
+          isEditing
+              ? '${t.edit} ${t.doctor}'
+              : t.doctor,
           style: const TextStyle(fontSize: 25),
         ),
       ),
@@ -85,23 +93,29 @@ class _DocteurEditPageState extends State<DocteurEditPage> {
       body: SafeArea(
         child: Form(
           key: _formKey,
+
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(
               horizontal: 16,
               vertical: 10,
             ),
+
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
+
               children: [
-                _buildLabel('Nom *'),
+                // NOM
+                _buildLabel('${t.doctorName} *'),
 
                 _buildTextField(
                   controller: _nomController,
-                  hint: 'Nom du docteur',
+                  hint: t.doctorName,
+
                   validator: (value) {
                     if (value == null ||
                         value.trim().isEmpty) {
-                      return 'Le nom est obligatoire';
+                      return t.doctorNameRequired;
                     }
 
                     return null;
@@ -110,79 +124,104 @@ class _DocteurEditPageState extends State<DocteurEditPage> {
 
                 const SizedBox(height: 15),
 
-                _buildLabel('Spécialité'),
+                // SPÉCIALITÉ
+                _buildLabel(t.specialty),
 
                 _buildTextField(
                   controller: _specialiteController,
-                  hint: 'Spécialité',
+                  hint: t.specialty,
                 ),
 
                 const SizedBox(height: 15),
 
-                _buildLabel('Adresse cabinet'),
+                // ADRESSE
+                _buildLabel(t.officeAddress),
 
                 _buildTextField(
                   controller: _adresseController,
-                  hint: 'Adresse du cabinet',
+                  hint: t.officeAddress,
                 ),
 
                 const SizedBox(height: 15),
 
-                _buildLabel('Téléphone'),
+                // TÉLÉPHONE
+                _buildLabel(t.phone),
 
                 _buildTextField(
                   controller: _telephoneController,
-                  hint: 'Téléphone',
+                  hint: t.phone,
                   keyboardType: TextInputType.phone,
                 ),
 
                 const SizedBox(height: 30),
 
+                // ENREGISTRER
                 SizedBox(
                   width: double.infinity,
                   height: 50,
+
                   child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor:
+                          widget.appSettings.themeColor,
+                      foregroundColor: Colors.white,
+                    ),
+
                     onPressed:
                         _viewModel.isSaving
                             ? null
                             : _enregistrer,
+
                     icon: _viewModel.isSaving
                         ? const SizedBox(
                             width: 20,
                             height: 20,
-                            child: CircularProgressIndicator(
+                            child:
+                                CircularProgressIndicator(
                               strokeWidth: 2,
                             ),
                           )
                         : const Icon(Icons.check),
+
                     label: Text(
                       _viewModel.isSaving
-                          ? 'Enregistrement...'
-                          : 'Enregistrer',
-                      style: const TextStyle(fontSize: 20),
+                          ? t.saving
+                          : t.save,
+
+                      style: const TextStyle(
+                        fontSize: 20,
+                      ),
                     ),
                   ),
                 ),
 
                 const SizedBox(height: 10),
 
+                // ANNULER
                 SizedBox(
                   width: double.infinity,
                   height: 50,
+
                   child: ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.red,
                       foregroundColor: Colors.white,
                     ),
-                    onPressed: _viewModel.isSaving
-                        ? null
-                        : () {
-                            Navigator.pop(context);
-                          },
+
+                    onPressed:
+                        _viewModel.isSaving
+                            ? null
+                            : () {
+                                Navigator.pop(context);
+                              },
+
                     icon: const Icon(Icons.close),
-                    label: const Text(
-                      'Annuler',
-                      style: TextStyle(fontSize: 20),
+
+                    label: Text(
+                      t.cancel,
+                      style: const TextStyle(
+                        fontSize: 20,
+                      ),
                     ),
                   ),
                 ),
@@ -199,8 +238,10 @@ class _DocteurEditPageState extends State<DocteurEditPage> {
   Widget _buildLabel(String text) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
+
       child: Text(
         text,
+
         style: const TextStyle(
           color: Colors.white,
           fontSize: 21,
@@ -213,22 +254,28 @@ class _DocteurEditPageState extends State<DocteurEditPage> {
   Widget _buildTextField({
     required TextEditingController controller,
     required String hint,
-    TextInputType keyboardType = TextInputType.text,
+    TextInputType keyboardType =
+        TextInputType.text,
     String? Function(String?)? validator,
   }) {
     return TextFormField(
       controller: controller,
       keyboardType: keyboardType,
       validator: validator,
+
       decoration: InputDecoration(
         hintText: hint,
         filled: true,
         fillColor: Colors.white,
+
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(5),
+          borderRadius:
+              BorderRadius.circular(5),
           borderSide: BorderSide.none,
         ),
-        contentPadding: const EdgeInsets.symmetric(
+
+        contentPadding:
+            const EdgeInsets.symmetric(
           horizontal: 12,
           vertical: 14,
         ),
@@ -244,40 +291,56 @@ class _DocteurEditPageState extends State<DocteurEditPage> {
     final docteur = Docteur(
       idDocteur: _getExistingId(),
       nom: _nomController.text.trim(),
-      specialite: _specialiteController.text.trim(),
-      adresseCabinet: _adresseController.text.trim(),
-      telephone: _telephoneController.text.trim(),
+      specialite:
+          _specialiteController.text.trim(),
+      adresseCabinet:
+          _adresseController.text.trim(),
+      telephone:
+          _telephoneController.text.trim(),
     );
 
     final bool success;
 
     if (isEditing) {
-      success = await _viewModel.modifierDocteur(docteur);
+      success =
+          await _viewModel.modifierDocteur(
+        docteur,
+      );
     } else {
-      success = await _viewModel.ajouterDocteur(docteur);
+      success =
+          await _viewModel.ajouterDocteur(
+        docteur,
+      );
     }
 
     if (!mounted) return;
 
     if (!success) {
+      final t = AppLocalizations.of(context);
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
             _viewModel.errorMessage ??
-                'Une erreur est survenue.',
+                t.unexpectedErrorDoctor,
           ),
         ),
       );
+
       return;
     }
 
     final result = <String, String>{
-      'idDocteur': _getExistingId()?.toString() ?? '',
-      'nom': _nomController.text.trim(),
-      'specialite': _specialiteController.text.trim(),
+      'idDocteur':
+          _getExistingId()?.toString() ?? '',
+      'nom':
+          _nomController.text.trim(),
+      'specialite':
+          _specialiteController.text.trim(),
       'adresseCabinet':
           _adresseController.text.trim(),
-      'telephone': _telephoneController.text.trim(),
+      'telephone':
+          _telephoneController.text.trim(),
     };
 
     Navigator.pop(context, result);

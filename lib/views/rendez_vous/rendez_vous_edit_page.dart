@@ -1,6 +1,9 @@
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../app_localizations.dart';
+import '../../app_settings.dart';
 import '../../models/docteur.dart';
 import '../../models/professionnel.dart';
 import '../../models/rendez_vous.dart';
@@ -9,11 +12,13 @@ import '../../viewmodels/rendez_vous_viewmodel.dart';
 class RendezVousEditPage extends StatefulWidget {
   final RendezVous? rendezVous;
   final DateTime? initialDate;
+  final AppSettings appSettings;
 
   const RendezVousEditPage({
     super.key,
     this.rendezVous,
     this.initialDate,
+    required this.appSettings,
   });
 
   @override
@@ -32,30 +37,40 @@ class _RendezVousEditPageState
   late TextEditingController _lieuController;
 
   DateTime _selectedDate = DateTime.now();
-  TimeOfDay _heureDebut = const TimeOfDay(hour: 9, minute: 0);
-  TimeOfDay _heureFin = const TimeOfDay(hour: 10, minute: 0);
+
+  TimeOfDay _heureDebut =
+      const TimeOfDay(hour: 9, minute: 0);
+
+  TimeOfDay _heureFin =
+      const TimeOfDay(hour: 10, minute: 0);
 
   String _typeRDV = 'Professionnel';
 
   int? _selectedProfessionnelId;
   int? _selectedDocteurId;
-  String _statut = 'Planifie';
-bool _estFavori = false;
 
-  bool get _isEditing => widget.rendezVous != null;
+  String _statut = 'Planifie';
+
+  bool _estFavori = false;
+
+  bool get _isEditing =>
+      widget.rendezVous != null;
 
   @override
   void initState() {
     super.initState();
 
     _viewModel = RendezVousViewModel();
-    _viewModel.addListener(_onViewModelChanged);
+    _viewModel.addListener(
+      _onViewModelChanged,
+    );
 
     _titreController = TextEditingController(
       text: widget.rendezVous?.titre ?? '',
     );
 
-    _descriptionController = TextEditingController(
+    _descriptionController =
+        TextEditingController(
       text: widget.rendezVous?.description ?? '',
     );
 
@@ -82,8 +97,10 @@ bool _estFavori = false;
 
       _selectedDocteurId =
           rdv.idDocteur;
+
       _statut = rdv.statut;
-_estFavori = rdv.estFavori;
+
+      _estFavori = rdv.estFavori;
     } else if (widget.initialDate != null) {
       _selectedDate = widget.initialDate!;
     }
@@ -138,6 +155,25 @@ _estFavori = rdv.estFavori;
   }
 
   String _formatTime(TimeOfDay time) {
+    final dateTime = DateTime(
+      2000,
+      1,
+      1,
+      time.hour,
+      time.minute,
+    );
+
+    if (widget.appSettings.parametres.formatHeure ==
+        '12h') {
+      return DateFormat('h:mm a').format(dateTime);
+    }
+
+    return DateFormat('HH:mm').format(dateTime);
+  }
+
+  String _formatTimeForDatabase(
+    TimeOfDay time,
+  ) {
     final hour =
         time.hour.toString().padLeft(2, '0');
 
@@ -148,12 +184,15 @@ _estFavori = rdv.estFavori;
   }
 
   Future<void> _selectDate() async {
+    final locale =
+        Localizations.localeOf(context);
+
     final date = await showDatePicker(
       context: context,
       initialDate: _selectedDate,
       firstDate: DateTime(2020),
       lastDate: DateTime(2100),
-      locale: const Locale('fr', 'FR'),
+      locale: locale,
     );
 
     if (date != null) {
@@ -219,6 +258,8 @@ _estFavori = rdv.estFavori;
   }
 
   Future<void> _saveRendezVous() async {
+    final t = AppLocalizations.of(context);
+
     if (!_formKey.currentState!.validate()) {
       return;
     }
@@ -233,10 +274,8 @@ _estFavori = rdv.estFavori;
 
     if (endMinutes <= startMinutes) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'L’heure de fin doit être après l’heure de début.',
-          ),
+        SnackBar(
+          content: Text(t.endTimeAfterStart),
         ),
       );
 
@@ -246,9 +285,9 @@ _estFavori = rdv.estFavori;
     if (_typeRDV == 'Professionnel' &&
         _selectedProfessionnelId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text(
-            'Veuillez sélectionner un professionnel.',
+            t.selectProfessional,
           ),
         ),
       );
@@ -259,10 +298,8 @@ _estFavori = rdv.estFavori;
     if (_typeRDV == 'Medical' &&
         _selectedDocteurId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Veuillez sélectionner un docteur.',
-          ),
+        SnackBar(
+          content: Text(t.selectDoctor),
         ),
       );
 
@@ -272,39 +309,62 @@ _estFavori = rdv.estFavori;
     final rdv = RendezVous(
       idRendezVous:
           widget.rendezVous?.idRendezVous,
+
       dateRDV:
           DateFormat('yyyy-MM-dd')
               .format(_selectedDate),
+
       heureDebut:
-          _formatTime(_heureDebut),
+          _formatTimeForDatabase(
+        _heureDebut,
+      ),
+
       heureFin:
-          _formatTime(_heureFin),
+          _formatTimeForDatabase(
+        _heureFin,
+      ),
+
       typeRDV: _typeRDV,
-      titre: _titreController.text.trim(),
+
+      titre:
+          _titreController.text.trim(),
+
       description:
-          _descriptionController.text.trim().isEmpty
+          _descriptionController.text
+                  .trim()
+                  .isEmpty
               ? null
-              : _descriptionController.text.trim(),
+              : _descriptionController.text
+                  .trim(),
+
       lieu:
           _lieuController.text.trim().isEmpty
               ? null
               : _lieuController.text.trim(),
+
       idProfessionnel:
           _selectedProfessionnelId,
+
       idDocteur:
           _selectedDocteurId,
-          statut: _statut,
-estFavori: _estFavori,
+
+      statut: _statut,
+
+      estFavori: _estFavori,
     );
 
     final bool success;
 
     if (_isEditing) {
       success =
-          await _viewModel.modifierRendezVous(rdv);
+          await _viewModel.modifierRendezVous(
+        rdv,
+      );
     } else {
       success =
-          await _viewModel.ajouterRendezVous(rdv);
+          await _viewModel.ajouterRendezVous(
+        rdv,
+      );
     }
 
     if (!mounted) return;
@@ -314,7 +374,7 @@ estFavori: _estFavori,
         SnackBar(
           content: Text(
             _viewModel.errorMessage ??
-                'Une erreur est survenue.',
+                t.unexpectedError,
           ),
         ),
       );
@@ -327,13 +387,18 @@ estFavori: _estFavori,
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
+
+    final locale =
+        Localizations.localeOf(context);
+
     if (_viewModel.isLoading) {
       return Scaffold(
         appBar: AppBar(
           title: Text(
             _isEditing
-                ? 'Modifier le rendez-vous'
-                : 'Ajouter un rendez-vous',
+                ? t.editAppointment
+                : t.addAppointment,
           ),
         ),
         body: const Center(
@@ -346,29 +411,41 @@ estFavori: _estFavori,
       appBar: AppBar(
         title: Text(
           _isEditing
-              ? 'Modifier le rendez-vous'
-              : 'Ajouter un rendez-vous',
+              ? t.editAppointment
+              : t.addAppointment,
         ),
       ),
+
       body: Form(
         key: _formKey,
+
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
+
           child: Column(
             crossAxisAlignment:
                 CrossAxisAlignment.stretch,
+
             children: [
+              // -------------------------
+              // TITRE
+              // -------------------------
               TextFormField(
                 controller: _titreController,
-                decoration: const InputDecoration(
-                  labelText: 'Titre',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.title),
+
+                decoration:
+                    InputDecoration(
+                  labelText: t.title,
+                  border:
+                      const OutlineInputBorder(),
+                  prefixIcon:
+                      const Icon(Icons.title),
                 ),
+
                 validator: (value) {
                   if (value == null ||
                       value.trim().isEmpty) {
-                    return 'Veuillez saisir un titre.';
+                    return t.enterTitle;
                   }
 
                   return null;
@@ -377,78 +454,121 @@ estFavori: _estFavori,
 
               const SizedBox(height: 16),
 
+              // -------------------------
+              // TYPE
+              // -------------------------
               DropdownButtonFormField<String>(
-                value: _typeRDV,
-                decoration: const InputDecoration(
-                  labelText: 'Type de rendez-vous',
-                  border: OutlineInputBorder(),
-                  prefixIcon:
-                      Icon(Icons.category_outlined),
+                initialValue: _typeRDV,
+
+                decoration:
+                    InputDecoration(
+                  labelText: t.appointmentType,
+                  border:
+                      const OutlineInputBorder(),
+                  prefixIcon: const Icon(
+                    Icons.category_outlined,
+                  ),
                 ),
-                items: const [
+
+                items: [
                   DropdownMenuItem(
                     value: 'Professionnel',
-                    child: Text('Professionnel'),
+                    child: Text(
+                      t.professional,
+                    ),
                   ),
+
                   DropdownMenuItem(
                     value: 'Medical',
-                    child: Text('Médical'),
+                    child: Text(
+                      t.medical,
+                    ),
                   ),
+
                   DropdownMenuItem(
                     value: 'Privé',
-                    child: Text('Privé'),
+                    child: Text(
+                      t.privateAppointment,
+                    ),
                   ),
                 ],
+
                 onChanged: _changeType,
               ),
 
               const SizedBox(height: 16),
 
+              // -------------------------
+              // STATUT
+              // -------------------------
               DropdownButtonFormField<String>(
-  value: _statut,
-  decoration: const InputDecoration(
-    labelText: 'Statut',
-    border: OutlineInputBorder(),
-    prefixIcon: Icon(Icons.flag_outlined),
-  ),
-  items: const [
-    DropdownMenuItem(
-      value: 'Planifie',
-      child: Text('Planifié'),
-    ),
-    DropdownMenuItem(
-      value: 'Termine',
-      child: Text('Terminé'),
-    ),
-    DropdownMenuItem(
-      value: 'Annule',
-      child: Text('Annulé'),
-    ),
-  ],
-  onChanged: (value) {
-    if (value == null) return;
+                initialValue: _statut,
 
-    setState(() {
-      _statut = value;
-    });
-  },
-),
-
-const SizedBox(height: 16),
-
-InkWell(
-  onTap: _selectDate,
-                child: InputDecorator(
-                  decoration: const InputDecoration(
-                    labelText: 'Date',
-                    border: OutlineInputBorder(),
-                    prefixIcon:
-                        Icon(Icons.calendar_today),
+                decoration:
+                    InputDecoration(
+                  labelText: t.status,
+                  border:
+                      const OutlineInputBorder(),
+                  prefixIcon: const Icon(
+                    Icons.flag_outlined,
                   ),
+                ),
+
+                items: [
+                  DropdownMenuItem(
+                    value: 'Planifie',
+                    child: Text(
+                      t.scheduled,
+                    ),
+                  ),
+
+                  DropdownMenuItem(
+                    value: 'Termine',
+                    child: Text(
+                      t.completed,
+                    ),
+                  ),
+
+                  DropdownMenuItem(
+                    value: 'Annule',
+                    child: Text(
+                      t.cancelled,
+                    ),
+                  ),
+                ],
+
+                onChanged: (value) {
+                  if (value == null) return;
+
+                  setState(() {
+                    _statut = value;
+                  });
+                },
+              ),
+
+              const SizedBox(height: 16),
+
+              // -------------------------
+              // DATE
+              // -------------------------
+              InkWell(
+                onTap: _selectDate,
+
+                child: InputDecorator(
+                  decoration:
+                      InputDecoration(
+                    labelText: t.date,
+                    border:
+                        const OutlineInputBorder(),
+                    prefixIcon: const Icon(
+                      Icons.calendar_today,
+                    ),
+                  ),
+
                   child: Text(
                     DateFormat(
                       'EEEE dd MMMM yyyy',
-                      'fr_FR',
+                      locale.toString(),
                     ).format(_selectedDate),
                   ),
                 ),
@@ -456,21 +576,33 @@ InkWell(
 
               const SizedBox(height: 16),
 
+              // -------------------------
+              // HEURES
+              // -------------------------
               Row(
                 children: [
                   Expanded(
                     child: InkWell(
-                      onTap: _selectStartTime,
+                      onTap:
+                          _selectStartTime,
+
                       child: InputDecorator(
                         decoration:
-                            const InputDecoration(
-                          labelText: 'Heure début',
-                          border: OutlineInputBorder(),
+                            InputDecoration(
+                          labelText:
+                              t.startTime,
+                          border:
+                              const OutlineInputBorder(),
                           prefixIcon:
-                              Icon(Icons.access_time),
+                              const Icon(
+                            Icons.access_time,
+                          ),
                         ),
+
                         child: Text(
-                          _formatTime(_heureDebut),
+                          _formatTime(
+                            _heureDebut,
+                          ),
                         ),
                       ),
                     ),
@@ -480,17 +612,26 @@ InkWell(
 
                   Expanded(
                     child: InkWell(
-                      onTap: _selectEndTime,
+                      onTap:
+                          _selectEndTime,
+
                       child: InputDecorator(
                         decoration:
-                            const InputDecoration(
-                          labelText: 'Heure fin',
-                          border: OutlineInputBorder(),
+                            InputDecoration(
+                          labelText:
+                              t.endTime,
+                          border:
+                              const OutlineInputBorder(),
                           prefixIcon:
-                              Icon(Icons.access_time),
+                              const Icon(
+                            Icons.access_time,
+                          ),
                         ),
+
                         child: Text(
-                          _formatTime(_heureFin),
+                          _formatTime(
+                            _heureFin,
+                          ),
                         ),
                       ),
                     ),
@@ -500,31 +641,48 @@ InkWell(
 
               const SizedBox(height: 16),
 
-              if (_typeRDV == 'Professionnel')
+              // -------------------------
+              // PROFESSIONNEL
+              // -------------------------
+              if (_typeRDV ==
+                  'Professionnel')
                 DropdownButtonFormField<int>(
-                  value: _selectedProfessionnelId,
+                  initialValue:
+                      _selectedProfessionnelId,
+
                   decoration:
-                      const InputDecoration(
-                    labelText: 'Professionnel',
-                    border: OutlineInputBorder(),
-                    prefixIcon:
-                        Icon(Icons.business_center),
+                      InputDecoration(
+                    labelText:
+                        t.professional,
+                    border:
+                        const OutlineInputBorder(),
+                    prefixIcon: const Icon(
+                      Icons.business_center,
+                    ),
                   ),
-                  items: _viewModel.professionnels
+
+                  items: _viewModel
+                      .professionnels
                       .map(
-                        (Professionnel professionnel) {
+                    (
+                      Professionnel professionnel,
+                    ) {
                       return DropdownMenuItem<int>(
-                        value:
-                            professionnel.idProfessionnel,
+                        value: professionnel
+                            .idProfessionnel,
+
                         child: Text(
                           '${professionnel.nom} - '
                           '${professionnel.societe ?? ''} '
                           '${professionnel.fonction ?? ''}',
+
                           overflow:
                               TextOverflow.ellipsis,
                         ),
                       );
-                    }).toList(),
+                    },
+                  ).toList(),
+
                   onChanged: (value) {
                     setState(() {
                       _selectedProfessionnelId =
@@ -533,103 +691,159 @@ InkWell(
                   },
                 ),
 
+              // -------------------------
+              // DOCTEUR
+              // -------------------------
               if (_typeRDV == 'Medical')
                 DropdownButtonFormField<int>(
-                  value: _selectedDocteurId,
+                  initialValue:
+                      _selectedDocteurId,
+
                   decoration:
-                      const InputDecoration(
-                    labelText: 'Docteur',
-                    border: OutlineInputBorder(),
-                    prefixIcon:
-                        Icon(Icons.medical_services),
+                      InputDecoration(
+                    labelText:
+                        t.doctor,
+                    border:
+                        const OutlineInputBorder(),
+                    prefixIcon: const Icon(
+                      Icons.medical_services,
+                    ),
                   ),
-                  items: _viewModel.docteurs
-                      .map((Docteur docteur) {
-                    return DropdownMenuItem<int>(
-                      value: docteur.idDocteur,
-                      child: Text(
-                        '${docteur.nom} - '
-                        '${docteur.specialite ?? ''}',
-                        overflow:
-                            TextOverflow.ellipsis,
-                      ),
-                    );
-                  }).toList(),
+
+                  items: _viewModel
+                      .docteurs
+                      .map(
+                    (Docteur docteur) {
+                      return DropdownMenuItem<int>(
+                        value:
+                            docteur.idDocteur,
+
+                        child: Text(
+                          '${docteur.nom} - '
+                          '${docteur.specialite ?? ''}',
+
+                          overflow:
+                              TextOverflow.ellipsis,
+                        ),
+                      );
+                    },
+                  ).toList(),
+
                   onChanged: (value) {
                     setState(() {
-                      _selectedDocteurId = value;
+                      _selectedDocteurId =
+                          value;
                     });
                   },
                 ),
 
               const SizedBox(height: 16),
 
+              // -------------------------
+              // LIEU
+              // -------------------------
               TextFormField(
                 controller: _lieuController,
-                decoration: const InputDecoration(
-                  labelText: 'Lieu',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.location_on),
+
+                decoration:
+                    InputDecoration(
+                  labelText: t.location,
+                  border:
+                      const OutlineInputBorder(),
+                  prefixIcon: const Icon(
+                    Icons.location_on,
+                  ),
                 ),
               ),
 
               const SizedBox(height: 16),
 
+              // -------------------------
+              // DESCRIPTION
+              // -------------------------
               TextFormField(
                 controller:
                     _descriptionController,
+
                 maxLines: 4,
-                decoration: const InputDecoration(
-                  labelText: 'Description',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.description),
+
+                decoration:
+                    InputDecoration(
+                  labelText:
+                      t.description,
+                  border:
+                      const OutlineInputBorder(),
+                  prefixIcon: const Icon(
+                    Icons.description,
+                  ),
                   alignLabelWithHint: true,
                 ),
               ),
 
+              // -------------------------
+              // FAVORI
+              // -------------------------
               SwitchListTile(
-  contentPadding: EdgeInsets.zero,
-  title: const Text('Ajouter aux favoris'),
-  subtitle: const Text(
-    'Marquer ce rendez-vous comme favori',
-  ),
-  secondary: Icon(
-    _estFavori
-        ? Icons.star
-        : Icons.star_border,
-  ),
-  value: _estFavori,
-  onChanged: (value) {
-    setState(() {
-      _estFavori = value;
-    });
-  },
-),
+                contentPadding:
+                    EdgeInsets.zero,
 
-const SizedBox(height: 24),
+                title: Text(
+                  t.addToFavorites,
+                ),
 
-SizedBox(
-  height: 50,
+                subtitle: Text(
+                  t.favoriteDescription,
+                ),
+
+                secondary: Icon(
+                  _estFavori
+                      ? Icons.star
+                      : Icons.star_border,
+                ),
+
+                value: _estFavori,
+
+                onChanged: (value) {
+                  setState(() {
+                    _estFavori = value;
+                  });
+                },
+              ),
+
+              const SizedBox(height: 24),
+
+              // -------------------------
+              // ENREGISTRER
+              // -------------------------
+              SizedBox(
+                height: 50,
+
                 child: ElevatedButton.icon(
-                  onPressed: _viewModel.isSaving
-                      ? null
-                      : _saveRendezVous,
+                  onPressed:
+                      _viewModel.isSaving
+                          ? null
+                          : _saveRendezVous,
+
                   icon: _viewModel.isSaving
                       ? const SizedBox(
                           width: 20,
                           height: 20,
+
                           child:
                               CircularProgressIndicator(
                             strokeWidth: 2,
                           ),
                         )
-                      : const Icon(Icons.save),
+                      : const Icon(
+                          Icons.save,
+                        ),
+
                   label: Text(
                     _viewModel.isSaving
-                        ? 'Enregistrement...'
+                        ? t.saving
                         : _isEditing
-                            ? 'Modifier'
-                            : 'Enregistrer',
+                            ? t.edit
+                            : t.save,
                   ),
                 ),
               ),

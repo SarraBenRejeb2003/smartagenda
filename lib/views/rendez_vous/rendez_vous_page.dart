@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../app_localizations.dart';
+import '../../app_settings.dart';
 import '../../models/rendez_vous.dart';
 import '../../models/professionnel.dart';
 import '../../models/docteur.dart';
@@ -8,7 +10,9 @@ import '../../viewmodels/rendez_vous_viewmodel.dart';
 import 'rendez_vous_edit_page.dart';
 
 class RendezVousPage extends StatefulWidget {
-  const RendezVousPage({super.key});
+  final AppSettings appSettings;
+
+  const RendezVousPage({super.key, required this.appSettings});
 
   @override
   State<RendezVousPage> createState() => _RendezVousPageState();
@@ -70,7 +74,7 @@ class _RendezVousPageState extends State<RendezVousPage> {
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => const RendezVousEditPage(),
+        builder: (_) => RendezVousEditPage(appSettings: widget.appSettings),
       ),
     );
 
@@ -84,10 +88,10 @@ class _RendezVousPageState extends State<RendezVousPage> {
   // ============================================================
 
   Future<void> _modifierRendezVous() async {
+    final t = AppLocalizations.of(context);
+
     if (selectedIndex == null) {
-      _afficherMessage(
-        'Veuillez sélectionner un rendez-vous.',
-      );
+      _afficherMessage(t.selectAppointment);
       return;
     }
 
@@ -104,6 +108,7 @@ class _RendezVousPageState extends State<RendezVousPage> {
       MaterialPageRoute(
         builder: (context) => RendezVousEditPage(
           rendezVous: rdv,
+          appSettings: widget.appSettings,
         ),
       ),
     );
@@ -118,10 +123,10 @@ class _RendezVousPageState extends State<RendezVousPage> {
   // ============================================================
 
   Future<void> _supprimerRendezVous() async {
+    final t = AppLocalizations.of(context);
+
     if (selectedIndex == null) {
-      _afficherMessage(
-        'Veuillez sélectionner un rendez-vous.',
-      );
+      _afficherMessage(t.selectAppointment);
       return;
     }
 
@@ -137,9 +142,9 @@ class _RendezVousPageState extends State<RendezVousPage> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Confirmation'),
+          title: Text(t.confirmation),
           content: Text(
-            'Voulez-vous vraiment supprimer le rendez-vous '
+            '${t.confirmDeleteAppointment} '
             '"${rdv.titre}" ?',
           ),
           actions: [
@@ -147,7 +152,7 @@ class _RendezVousPageState extends State<RendezVousPage> {
               onPressed: () {
                 Navigator.pop(context, false);
               },
-              child: const Text('Annuler'),
+              child: Text(t.cancel),
             ),
             ElevatedButton(
               onPressed: () {
@@ -157,7 +162,7 @@ class _RendezVousPageState extends State<RendezVousPage> {
                 backgroundColor: Colors.red,
                 foregroundColor: Colors.white,
               ),
-              child: const Text('Supprimer'),
+              child: Text(t.delete),
             ),
           ],
         );
@@ -168,9 +173,7 @@ class _RendezVousPageState extends State<RendezVousPage> {
       return;
     }
 
-    final success = await _viewModel.supprimerRendezVous(
-      rdv.idRendezVous!,
-    );
+    final success = await _viewModel.supprimerRendezVous(rdv.idRendezVous!);
 
     if (!mounted) return;
 
@@ -179,13 +182,9 @@ class _RendezVousPageState extends State<RendezVousPage> {
         selectedIndex = null;
       });
 
-      _afficherMessage(
-        'Rendez-vous supprimé avec succès.',
-      );
+      _afficherMessage(t.deletedSuccessfully);
     } else if (_viewModel.errorMessage != null) {
-      _afficherMessage(
-        _viewModel.errorMessage!,
-      );
+      _afficherMessage(_viewModel.errorMessage!);
 
       _viewModel.clearError();
     }
@@ -195,9 +194,9 @@ class _RendezVousPageState extends State<RendezVousPage> {
   // FAVORI
   // ============================================================
 
-  Future<void> _changerFavori(
-    RendezVous rdv,
-  ) async {
+  Future<void> _changerFavori(RendezVous rdv) async {
+    final t = AppLocalizations.of(context);
+
     if (rdv.idRendezVous == null) {
       return;
     }
@@ -210,11 +209,11 @@ class _RendezVousPageState extends State<RendezVousPage> {
     if (!mounted) return;
 
     if (!success && _viewModel.errorMessage != null) {
-      _afficherMessage(
-        _viewModel.errorMessage!,
-      );
+      _afficherMessage(_viewModel.errorMessage!);
 
       _viewModel.clearError();
+    } else if (success) {
+      _afficherMessage(rdv.estFavori ? t.favoriteRemoved : t.favoriteAdded);
     }
   }
 
@@ -222,10 +221,7 @@ class _RendezVousPageState extends State<RendezVousPage> {
   // STATUT
   // ============================================================
 
-  Future<void> _changerStatut(
-    RendezVous rdv,
-    String nouveauStatut,
-  ) async {
+  Future<void> _changerStatut(RendezVous rdv, String nouveauStatut) async {
     if (rdv.idRendezVous == null) {
       return;
     }
@@ -242,11 +238,11 @@ class _RendezVousPageState extends State<RendezVousPage> {
     if (!mounted) return;
 
     if (!success && _viewModel.errorMessage != null) {
-      _afficherMessage(
-        _viewModel.errorMessage!,
-      );
+      _afficherMessage(_viewModel.errorMessage!);
 
       _viewModel.clearError();
+    } else if (success) {
+      _afficherMessage(AppLocalizations.of(context).statusModified);
     }
   }
 
@@ -254,10 +250,9 @@ class _RendezVousPageState extends State<RendezVousPage> {
   // AFFICHER LE MENU DU STATUT
   // ============================================================
 
-  Future<void> _afficherMenuStatut(
-    BuildContext context,
-    RendezVous rdv,
-  ) async {
+  Future<void> _afficherMenuStatut(BuildContext context, RendezVous rdv) async {
+    final t = AppLocalizations.of(context);
+
     final selectedStatus = await showModalBottomSheet<String>(
       context: context,
       builder: (context) {
@@ -265,64 +260,53 @@ class _RendezVousPageState extends State<RendezVousPage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Padding(
-                padding: EdgeInsets.all(16),
+              Padding(
+                padding: const EdgeInsets.all(16),
                 child: Text(
-                  'Modifier le statut',
-                  style: TextStyle(
+                  t.modifyStatus,
+                  style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
+
+              // PLANIFIÉ
               ListTile(
-                leading: const Icon(
-                  Icons.schedule,
-                  color: Colors.blue,
-                ),
-                title: const Text('Planifié'),
+                leading: const Icon(Icons.schedule, color: Colors.blue),
+                title: Text(t.scheduled),
                 trailing: rdv.statut == 'Planifie'
                     ? const Icon(Icons.check)
                     : null,
                 onTap: () {
-                  Navigator.pop(
-                    context,
-                    'Planifie',
-                  );
+                  Navigator.pop(context, 'Planifie');
                 },
               ),
+
+              // TERMINÉ
               ListTile(
-                leading: const Icon(
-                  Icons.check_circle,
-                  color: Colors.green,
-                ),
-                title: const Text('Terminé'),
+                leading: const Icon(Icons.check_circle, color: Colors.green),
+                title: Text(t.completed),
                 trailing: rdv.statut == 'Termine'
                     ? const Icon(Icons.check)
                     : null,
                 onTap: () {
-                  Navigator.pop(
-                    context,
-                    'Termine',
-                  );
+                  Navigator.pop(context, 'Termine');
                 },
               ),
+
+              // ANNULÉ
               ListTile(
-                leading: const Icon(
-                  Icons.cancel,
-                  color: Colors.red,
-                ),
-                title: const Text('Annulé'),
+                leading: const Icon(Icons.cancel, color: Colors.red),
+                title: Text(t.cancelled),
                 trailing: rdv.statut == 'Annule'
                     ? const Icon(Icons.check)
                     : null,
                 onTap: () {
-                  Navigator.pop(
-                    context,
-                    'Annule',
-                  );
+                  Navigator.pop(context, 'Annule');
                 },
               ),
+
               const SizedBox(height: 8),
             ],
           ),
@@ -331,10 +315,7 @@ class _RendezVousPageState extends State<RendezVousPage> {
     );
 
     if (selectedStatus != null) {
-      await _changerStatut(
-        rdv,
-        selectedStatus,
-      );
+      await _changerStatut(rdv, selectedStatus);
     }
   }
 
@@ -343,15 +324,17 @@ class _RendezVousPageState extends State<RendezVousPage> {
   // ============================================================
 
   String _afficherStatut(String statut) {
+    final t = AppLocalizations.of(context);
+
     switch (statut) {
       case 'Planifie':
-        return 'Planifié';
+        return t.scheduled;
 
       case 'Termine':
-        return 'Terminé';
+        return t.completed;
 
       case 'Annule':
-        return 'Annulé';
+        return t.cancelled;
 
       default:
         return statut;
@@ -383,11 +366,8 @@ class _RendezVousPageState extends State<RendezVousPage> {
   // ============================================================
 
   void _afficherMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-      ),
-    );
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   // ============================================================
@@ -398,107 +378,131 @@ class _RendezVousPageState extends State<RendezVousPage> {
     try {
       final parsedDate = DateTime.parse(date);
 
-      return DateFormat(
-        'dd/MM/yyyy',
-      ).format(parsedDate);
+      return DateFormat('dd/MM/yyyy').format(parsedDate);
     } catch (_) {}
 
     try {
-      final parsedDate =
-          DateFormat('dd/MM/yyyy').parse(date);
+      final parsedDate = DateFormat('dd/MM/yyyy').parse(date);
 
-      return DateFormat(
-        'dd/MM/yyyy',
-      ).format(parsedDate);
+      return DateFormat('dd/MM/yyyy').format(parsedDate);
     } catch (_) {}
 
     return date;
   }
 
   // ============================================================
+  // FORMAT HEURE
+  // ============================================================
+
+  String _formaterHeure(String heure) {
+    try {
+      final parsedTime = DateFormat('HH:mm').parse(heure);
+
+      if (widget.appSettings.parametres.formatHeure == '12h') {
+        return DateFormat('h:mm a').format(parsedTime);
+      }
+
+      return DateFormat('HH:mm').format(parsedTime);
+    } catch (_) {
+      return heure;
+    }
+  }
+
+  // ============================================================
   // TYPE
   // ============================================================
 
-  String _afficherType(String type) {
-    switch (type) {
-      case 'Professionnel':
-        return 'Professionnel';
+ 
+String _afficherType(String type) {
+  final t = AppLocalizations.of(context);
 
-      case 'Medical':
-        return 'Médical';
+  switch (type) {
+    case 'Professionnel':
+      return t.professional;
 
-      case 'Prive':
-        return 'Privé';
+    case 'Medical':
+      return t.medical;
 
-      default:
-        return type;
+    case 'Private':
+    case 'Prive':
+    case 'Privé':
+      return t.privateAppointment;
+
+    default:
+      return type;
+  }
+}
+
+// ============================================================
+// AFFICHER LE CONTACT
+// ============================================================
+
+String _afficherContact(RendezVous rdv) {
+  final t = AppLocalizations.of(context);
+
+  if (rdv.typeRDV == 'Professionnel') {
+    final Professionnel? professionnel = _viewModel.getProfessionnel(
+      rdv.idProfessionnel,
+    );
+
+    if (professionnel == null) {
+      return '';
     }
+
+    final details = <String>[];
+
+    if (professionnel.societe.trim().isNotEmpty) {
+      details.add(professionnel.societe.trim());
+    }
+
+    if (professionnel.fonction.trim().isNotEmpty) {
+      details.add(professionnel.fonction.trim());
+    }
+
+    if (details.isEmpty) {
+      return professionnel.nom;
+    }
+
+    return '${professionnel.nom} - '
+        '${details.join(' - ')}';
   }
 
-  // ============================================================
-  // AFFICHER LE CONTACT
-  // ============================================================
+  if (rdv.typeRDV == 'Medical') {
+    final Docteur? docteur = _viewModel.getDocteur(
+      rdv.idDocteur,
+    );
 
-  String _afficherContact(RendezVous rdv) {
-    if (rdv.typeRDV == 'Professionnel') {
-      final Professionnel? professionnel =
-          _viewModel.getProfessionnel(
-        rdv.idProfessionnel,
-      );
-
-      if (professionnel == null) {
-        return '';
-      }
-
-      final details = <String>[];
-
-      if (professionnel.societe.trim().isNotEmpty) {
-        details.add(
-          professionnel.societe.trim(),
-        );
-      }
-
-      if (professionnel.fonction.trim().isNotEmpty) {
-        details.add(
-          professionnel.fonction.trim(),
-        );
-      }
-
-      if (details.isEmpty) {
-        return professionnel.nom;
-      }
-
-      return '${professionnel.nom} - '
-          '${details.join(' - ')}';
+    if (docteur == null) {
+      return '';
     }
 
-    if (rdv.typeRDV == 'Medical') {
-      final Docteur? docteur =
-          _viewModel.getDocteur(
-        rdv.idDocteur,
-      );
-
-      if (docteur == null) {
-        return '';
-      }
-
-      if (docteur.specialite != null &&
-          docteur.specialite!.trim().isNotEmpty) {
-        return '${docteur.nom} - '
-            '${docteur.specialite!.trim()}';
-      }
-
-      return docteur.nom;
+    if (docteur.specialite != null &&
+        docteur.specialite!.trim().isNotEmpty) {
+      return '${docteur.nom} - '
+          '${docteur.specialite!.trim()}';
     }
 
-    return 'Privé';
+    return docteur.nom;
   }
+
+  // Private appointment
+  if (rdv.typeRDV == 'Private' ||
+      rdv.typeRDV == 'Prive' ||
+      rdv.typeRDV == 'Privé') {
+    return t.privateAppointment;
+  }
+
+  return '';
+}
+
 
   // ============================================================
   // DÉTAILS DU RENDEZ-VOUS
   // ============================================================
 
   Widget _buildDetailsRendezVous() {
+    final t = AppLocalizations.of(context);
+
     if (selectedIndex == null) {
       return const SizedBox.shrink();
     }
@@ -512,90 +516,66 @@ class _RendezVousPageState extends State<RendezVousPage> {
     final rdv = rendezVous[selectedIndex!];
 
     return Card(
-      margin: const EdgeInsets.fromLTRB(
-        16,
-        4,
-        16,
-        12,
-      ),
+      margin: const EdgeInsets.fromLTRB(16, 4, 16, 12),
       elevation: 2,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
-          crossAxisAlignment:
-              CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Row(
+            Row(
               children: [
-                Icon(
-                  Icons.event_note,
-                  color: Color(0xFF159E9E),
-                ),
-                SizedBox(width: 8),
+                Icon(Icons.event_note, color: widget.appSettings.themeColor),
+                const SizedBox(width: 8),
                 Text(
-                  'Détails du rendez-vous',
-                  style: TextStyle(
+                  t.appointmentDetails,
+                  style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
               ],
             ),
+
             const SizedBox(height: 14),
+
             _detailRow(
               Icons.calendar_today,
-              'Date',
+              t.date,
               _formaterDate(rdv.dateRDV),
             ),
+
             _detailRow(
               Icons.access_time,
-              'Horaire',
-              '${rdv.heureDebut} - ${rdv.heureFin}',
+              t.time,
+              '${_formaterHeure(rdv.heureDebut)} - '
+              '${_formaterHeure(rdv.heureFin)}',
             ),
-            _detailRow(
-              Icons.category,
-              'Type',
-              _afficherType(rdv.typeRDV),
-            ),
-            _detailRow(
-              Icons.title,
-              'Titre',
-              rdv.titre,
-            ),
-            _detailRow(
-              Icons.flag,
-              'Statut',
-              _afficherStatut(rdv.statut),
-            ),
-            _detailRow(
-              Icons.star,
-              'Favori',
-              rdv.estFavori ? 'Oui' : 'Non',
-            ),
+
+            _detailRow(Icons.category, t.type, _afficherType(rdv.typeRDV)),
+
+            _detailRow(Icons.title, t.title, rdv.titre),
+
+            _detailRow(Icons.flag, t.status, _afficherStatut(rdv.statut)),
+
+            _detailRow(Icons.star, t.favorite, rdv.estFavori ? t.yes : t.no),
+
             if (_afficherContact(rdv).isNotEmpty)
               _detailRow(
                 Icons.person,
                 rdv.typeRDV == 'Medical'
-                    ? 'Docteur'
+                    ? t.doctor
                     : rdv.typeRDV == 'Professionnel'
-                        ? 'Professionnel'
-                        : 'Contact',
+                    ? t.professional
+                    : t.contact,
                 _afficherContact(rdv),
               ),
-            if (rdv.lieu != null &&
-                rdv.lieu!.trim().isNotEmpty)
-              _detailRow(
-                Icons.location_on,
-                'Lieu',
-                rdv.lieu!,
-              ),
-            if (rdv.description != null &&
-                rdv.description!.trim().isNotEmpty)
-              _detailRow(
-                Icons.description,
-                'Description',
-                rdv.description!,
-              ),
+
+            if (rdv.lieu != null && rdv.lieu!.trim().isNotEmpty)
+              _detailRow(Icons.location_on, t.location, rdv.lieu!),
+
+            if (rdv.description != null && rdv.description!.trim().isNotEmpty)
+              _detailRow(Icons.description, t.description, rdv.description!),
           ],
         ),
       ),
@@ -606,37 +586,22 @@ class _RendezVousPageState extends State<RendezVousPage> {
   // LIGNE DE DÉTAIL
   // ============================================================
 
-  Widget _detailRow(
-    IconData icon,
-    String label,
-    String value,
-  ) {
+  Widget _detailRow(IconData icon, String label, String value) {
     return Padding(
-      padding: const EdgeInsets.only(
-        bottom: 9,
-      ),
+      padding: const EdgeInsets.only(bottom: 9),
       child: Row(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            icon,
-            size: 20,
-            color: const Color(0xFF159E9E),
-          ),
+          Icon(icon, size: 20, color: widget.appSettings.themeColor),
           const SizedBox(width: 10),
           SizedBox(
             width: 105,
             child: Text(
               '$label :',
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-              ),
+              style: const TextStyle(fontWeight: FontWeight.bold),
             ),
           ),
-          Expanded(
-            child: Text(value),
-          ),
+          Expanded(child: Text(value)),
         ],
       ),
     );
@@ -651,23 +616,15 @@ class _RendezVousPageState extends State<RendezVousPage> {
 
     return InkWell(
       onTap: () {
-        _afficherMenuStatut(
-          context,
-          rdv,
-        );
+        _afficherMenuStatut(context, rdv);
       },
       borderRadius: BorderRadius.circular(20),
       child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 10,
-          vertical: 6,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
           color: color.withOpacity(0.12),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: color.withOpacity(0.35),
-          ),
+          border: Border.all(color: color.withOpacity(0.35)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -676,18 +633,15 @@ class _RendezVousPageState extends State<RendezVousPage> {
               rdv.statut == 'Planifie'
                   ? Icons.schedule
                   : rdv.statut == 'Termine'
-                      ? Icons.check_circle
-                      : Icons.cancel,
+                  ? Icons.check_circle
+                  : Icons.cancel,
               size: 16,
               color: color,
             ),
             const SizedBox(width: 5),
             Text(
               _afficherStatut(rdv.statut),
-              style: TextStyle(
-                color: color,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(color: color, fontWeight: FontWeight.bold),
             ),
           ],
         ),
@@ -700,241 +654,179 @@ class _RendezVousPageState extends State<RendezVousPage> {
   // ============================================================
 
   Widget _buildTableau() {
+    final t = AppLocalizations.of(context);
     final rendezVous = _viewModel.rendezVous;
 
     if (rendezVous.isEmpty) {
-      return const Center(
+      return Center(
         child: Text(
-          'Aucun rendez-vous enregistré.',
-          style: TextStyle(
-            fontSize: 18,
-            color: Colors.grey,
-          ),
+          t.noAppointmentsRecorded,
+          style: const TextStyle(fontSize: 18, color: Colors.grey),
         ),
       );
     }
-
-    const turquoise = Color(0xFF159E9E);
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: SingleChildScrollView(
         child: DataTable(
           columnSpacing: 30,
-          headingRowColor:
-              WidgetStateProperty.all(
-            turquoise.withOpacity(0.15),
+          headingRowColor: WidgetStateProperty.all(
+            widget.appSettings.themeColor.withOpacity(0.15),
           ),
-          columns: const [
+          columns: [
             DataColumn(
               label: Text(
-                'Favori',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                ),
+                t.favorite,
+                style: const TextStyle(fontWeight: FontWeight.bold),
               ),
             ),
             DataColumn(
               label: Text(
-                'Statut',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                ),
+                t.status,
+                style: const TextStyle(fontWeight: FontWeight.bold),
               ),
             ),
             DataColumn(
               label: Text(
-                'Date',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                ),
+                t.date,
+                style: const TextStyle(fontWeight: FontWeight.bold),
               ),
             ),
             DataColumn(
               label: Text(
-                'Début',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                ),
+                t.start,
+                style: const TextStyle(fontWeight: FontWeight.bold),
               ),
             ),
             DataColumn(
               label: Text(
-                'Fin',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                ),
+                t.end,
+                style: const TextStyle(fontWeight: FontWeight.bold),
               ),
             ),
             DataColumn(
               label: Text(
-                'Type',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                ),
+                t.type,
+                style: const TextStyle(fontWeight: FontWeight.bold),
               ),
             ),
             DataColumn(
               label: Text(
-                'Titre',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                ),
+                t.title,
+                style: const TextStyle(fontWeight: FontWeight.bold),
               ),
             ),
             DataColumn(
               label: Text(
-                'Contact',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                ),
+                t.contact,
+                style: const TextStyle(fontWeight: FontWeight.bold),
               ),
             ),
             DataColumn(
               label: Text(
-                'Lieu',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                ),
+                t.location,
+                style: const TextStyle(fontWeight: FontWeight.bold),
               ),
             ),
             DataColumn(
               label: Text(
-                'Description',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                ),
+                t.description,
+                style: const TextStyle(fontWeight: FontWeight.bold),
               ),
             ),
           ],
-          rows: List.generate(
-            rendezVous.length,
-            (index) {
-              final rdv = rendezVous[index];
+          rows: List.generate(rendezVous.length, (index) {
+            final rdv = rendezVous[index];
 
-              final isSelected =
-                  selectedIndex == index;
+            final isSelected = selectedIndex == index;
 
-              return DataRow(
-                selected: isSelected,
-                onSelectChanged: (selected) {
-                  setState(() {
-                    if (selected == true) {
-                      selectedIndex = index;
-                    } else {
-                      selectedIndex = null;
-                    }
-                  });
-                },
-                cells: [
-                  // FAVORI
-                  DataCell(
-                    IconButton(
-                      tooltip: rdv.estFavori
-                          ? 'Retirer des favoris'
-                          : 'Ajouter aux favoris',
-                      onPressed: () {
-                        _changerFavori(rdv);
-                      },
-                      icon: Icon(
-                        rdv.estFavori
-                            ? Icons.star
-                            : Icons.star_border,
-                        color: rdv.estFavori
-                            ? Colors.amber
-                            : Colors.grey,
-                      ),
+            return DataRow(
+              selected: isSelected,
+              onSelectChanged: (selected) {
+                setState(() {
+                  if (selected == true) {
+                    selectedIndex = index;
+                  } else {
+                    selectedIndex = null;
+                  }
+                });
+              },
+              cells: [
+                // FAVORI
+                DataCell(
+                  IconButton(
+                    tooltip: rdv.estFavori
+                        ? t.removeFromFavorites
+                        : t.addToFavorites,
+                    onPressed: () {
+                      _changerFavori(rdv);
+                    },
+                    icon: Icon(
+                      rdv.estFavori ? Icons.star : Icons.star_border,
+                      color: rdv.estFavori ? Colors.amber : Colors.grey,
                     ),
                   ),
+                ),
 
-                  // STATUT
-                  DataCell(
-                    _buildStatutBadge(rdv),
+                // STATUT
+                DataCell(_buildStatutBadge(rdv)),
+
+                // DATE
+                DataCell(Text(_formaterDate(rdv.dateRDV))),
+
+                // DÉBUT
+                DataCell(Text(_formaterHeure(rdv.heureDebut))),
+
+                // FIN
+                DataCell(Text(_formaterHeure(rdv.heureFin))),
+
+                // TYPE
+                DataCell(Text(_afficherType(rdv.typeRDV))),
+
+                // TITRE
+                DataCell(
+                  SizedBox(
+                    width: 160,
+                    child: Text(rdv.titre, overflow: TextOverflow.ellipsis),
                   ),
+                ),
 
-                  // DATE
-                  DataCell(
-                    Text(
-                      _formaterDate(
-                        rdv.dateRDV,
-                      ),
+                // CONTACT
+                DataCell(
+                  SizedBox(
+                    width: 230,
+                    child: Text(
+                      _afficherContact(rdv),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
+                ),
 
-                  // DÉBUT
-                  DataCell(
-                    Text(
-                      rdv.heureDebut,
+                // LIEU
+                DataCell(
+                  SizedBox(
+                    width: 150,
+                    child: Text(
+                      rdv.lieu ?? '',
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
+                ),
 
-                  // FIN
-                  DataCell(
-                    Text(
-                      rdv.heureFin,
+                // DESCRIPTION
+                DataCell(
+                  SizedBox(
+                    width: 250,
+                    child: Text(
+                      rdv.description ?? '',
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
-
-                  // TYPE
-                  DataCell(
-                    Text(
-                      _afficherType(
-                        rdv.typeRDV,
-                      ),
-                    ),
-                  ),
-
-                  // TITRE
-                  DataCell(
-                    SizedBox(
-                      width: 160,
-                      child: Text(
-                        rdv.titre,
-                        overflow:
-                            TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ),
-
-                  // CONTACT
-                  DataCell(
-                    SizedBox(
-                      width: 230,
-                      child: Text(
-                        _afficherContact(rdv),
-                        overflow:
-                            TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ),
-
-                  // LIEU
-                  DataCell(
-                    SizedBox(
-                      width: 150,
-                      child: Text(
-                        rdv.lieu ?? '',
-                        overflow:
-                            TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ),
-
-                  // DESCRIPTION
-                  DataCell(
-                    SizedBox(
-                      width: 250,
-                      child: Text(
-                        rdv.description ?? '',
-                        overflow:
-                            TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
+                ),
+              ],
+            );
+          }),
         ),
       ),
     );
@@ -946,84 +838,64 @@ class _RendezVousPageState extends State<RendezVousPage> {
 
   @override
   Widget build(BuildContext context) {
-    const turquoise = Color(0xFF159E9E);
+    final t = AppLocalizations.of(context);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'Rendez-Vous',
-          style: TextStyle(
+        title: Text(
+          t.appointments,
+          style: const TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
           ),
         ),
-        backgroundColor: turquoise,
-        iconTheme: const IconThemeData(
-          color: Colors.white,
-        ),
+        backgroundColor: widget.appSettings.themeColor,
+        iconTheme: const IconThemeData(color: Colors.white),
         actions: [
           IconButton(
-            icon: const Icon(
-              Icons.refresh,
-            ),
+            icon: const Icon(Icons.refresh),
             onPressed: _chargerDonnees,
           ),
         ],
       ),
+
       body: Container(
         width: double.infinity,
         color: Colors.white,
         child: _viewModel.isLoading
-            ? const Center(
-                child: CircularProgressIndicator(),
-              )
+            ? const Center(child: CircularProgressIndicator())
             : Column(
                 children: [
                   // ==================================================
                   // TABLEAU
                   // ==================================================
 
-                  Expanded(
-                    child: _buildTableau(),
-                  ),
+                  Expanded(child: _buildTableau()),
 
                   // ==================================================
                   // DÉTAILS
                   // ==================================================
-
                   _buildDetailsRendezVous(),
 
                   // ==================================================
                   // BOUTONS
                   // ==================================================
-
                   Padding(
                     padding: const EdgeInsets.all(20),
                     child: Wrap(
                       spacing: 12,
                       runSpacing: 12,
-                      alignment:
-                          WrapAlignment.center,
+                      alignment: WrapAlignment.center,
                       children: [
                         // NOUVEAU
                         ElevatedButton.icon(
-                          onPressed:
-                              _nouveauRendezVous,
-                          icon: const Icon(
-                            Icons.add,
-                          ),
-                          label: const Text(
-                            'Nouveau',
-                          ),
-                          style:
-                              ElevatedButton.styleFrom(
-                            backgroundColor:
-                                turquoise,
-                            foregroundColor:
-                                Colors.white,
-                            padding:
-                                const EdgeInsets
-                                    .symmetric(
+                          onPressed: _nouveauRendezVous,
+                          icon: const Icon(Icons.add),
+                          label: Text(t.newAppointment),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: widget.appSettings.themeColor,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
                               horizontal: 20,
                               vertical: 14,
                             ),
@@ -1032,23 +904,13 @@ class _RendezVousPageState extends State<RendezVousPage> {
 
                         // MODIFIER
                         ElevatedButton.icon(
-                          onPressed:
-                              _modifierRendezVous,
-                          icon: const Icon(
-                            Icons.edit,
-                          ),
-                          label: const Text(
-                            'Modifier',
-                          ),
-                          style:
-                              ElevatedButton.styleFrom(
-                            backgroundColor:
-                                Colors.orange,
-                            foregroundColor:
-                                Colors.white,
-                            padding:
-                                const EdgeInsets
-                                    .symmetric(
+                          onPressed: _modifierRendezVous,
+                          icon: const Icon(Icons.edit),
+                          label: Text(t.edit),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.orange,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
                               horizontal: 20,
                               vertical: 14,
                             ),
@@ -1057,23 +919,13 @@ class _RendezVousPageState extends State<RendezVousPage> {
 
                         // SUPPRIMER
                         ElevatedButton.icon(
-                          onPressed:
-                              _supprimerRendezVous,
-                          icon: const Icon(
-                            Icons.delete,
-                          ),
-                          label: const Text(
-                            'Supprimer',
-                          ),
-                          style:
-                              ElevatedButton.styleFrom(
-                            backgroundColor:
-                                Colors.red,
-                            foregroundColor:
-                                Colors.white,
-                            padding:
-                                const EdgeInsets
-                                    .symmetric(
+                          onPressed: _supprimerRendezVous,
+                          icon: const Icon(Icons.delete),
+                          label: Text(t.delete),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
                               horizontal: 20,
                               vertical: 14,
                             ),

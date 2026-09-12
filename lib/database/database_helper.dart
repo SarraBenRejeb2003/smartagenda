@@ -1,6 +1,6 @@
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
-
+import '../models/parametres.dart';
 import '../models/professionnel.dart';
 import '../models/docteur.dart';
 import '../models/rendez_vous.dart';
@@ -24,7 +24,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 2,
+      version: 3,
       onCreate: _createDB,
       onUpgrade: _onUpgrade,
     );
@@ -68,6 +68,25 @@ class DatabaseHelper {
         estFavori INTEGER NOT NULL DEFAULT 0
       )
     ''');
+    await db.execute('''
+  CREATE TABLE Parametres (
+    idParametres INTEGER PRIMARY KEY AUTOINCREMENT,
+    delaiNotifDefaut INTEGER NOT NULL DEFAULT 30,
+    themeCouleur TEXT NOT NULL DEFAULT '#6750A4',
+    formatHeure TEXT NOT NULL DEFAULT '24h',
+    langue TEXT NOT NULL DEFAULT 'fr'
+  )
+''');
+
+await db.insert(
+  'Parametres',
+  {
+    'delaiNotifDefaut': 30,
+    'themeCouleur': '#6750A4',
+    'formatHeure': '24h',
+    'langue': 'fr',
+  },
+);
   }
 
   Future<void> _onUpgrade(
@@ -86,6 +105,27 @@ class DatabaseHelper {
         ADD COLUMN estFavori INTEGER NOT NULL DEFAULT 0
       ''');
     }
+    if (oldVersion < 3) {
+  await db.execute('''
+    CREATE TABLE Parametres (
+      idParametres INTEGER PRIMARY KEY AUTOINCREMENT,
+      delaiNotifDefaut INTEGER NOT NULL DEFAULT 30,
+      themeCouleur TEXT NOT NULL DEFAULT '#6750A4',
+      formatHeure TEXT NOT NULL DEFAULT '24h',
+      langue TEXT NOT NULL DEFAULT 'fr'
+    )
+  ''');
+
+  await db.insert(
+    'Parametres',
+    {
+      'delaiNotifDefaut': 30,
+      'themeCouleur': '#6750A4',
+      'formatHeure': '24h',
+      'langue': 'fr',
+    },
+  );
+}
   }
 
   // ─────────────────────────────────────────────
@@ -320,4 +360,59 @@ class DatabaseHelper {
 
     return result.isNotEmpty;
   }
+  // ─────────────────────────────────────────────
+// PARAMETRES
+// ─────────────────────────────────────────────
+
+Future<Parametres> getParametres() async {
+  final db = await database;
+
+  final result = await db.query(
+    'Parametres',
+    orderBy: 'idParametres ASC',
+    limit: 1,
+  );
+
+  if (result.isEmpty) {
+    final id = await db.insert(
+      'Parametres',
+      {
+        'delaiNotifDefaut': 30,
+        'themeCouleur': '#6750A4',
+        'formatHeure': '24h',
+        'langue': 'fr',
+      },
+    );
+
+    return Parametres(
+      idParametres: id,
+    );
+  }
+
+  return Parametres.fromMap(result.first);
+}
+
+Future<int> updateParametres(
+  Parametres parametres,
+) async {
+  final db = await database;
+
+  final data = parametres.toMap();
+
+  data.remove('idParametres');
+
+  if (parametres.idParametres == null) {
+    return await db.insert(
+      'Parametres',
+      data,
+    );
+  }
+
+  return await db.update(
+    'Parametres',
+    data,
+    where: 'idParametres = ?',
+    whereArgs: [parametres.idParametres],
+  );
+}
 }

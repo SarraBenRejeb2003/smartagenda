@@ -1,15 +1,24 @@
+
 import 'package:flutter/material.dart';
 
+import '../../app_localizations.dart';
+import '../../app_settings.dart';
 import '../../models/professionnel.dart';
 import '../../viewmodels/professionnel_viewmodel.dart';
 
 class ProfessionnelEditPage extends StatefulWidget {
   final Map<String, String>? professionnel;
+  final AppSettings appSettings;
 
-  const ProfessionnelEditPage({super.key, this.professionnel});
+  const ProfessionnelEditPage({
+    super.key,
+    this.professionnel,
+    required this.appSettings,
+  });
 
   @override
-  State<ProfessionnelEditPage> createState() => _ProfessionnelEditPageState();
+  State<ProfessionnelEditPage> createState() =>
+      _ProfessionnelEditPageState();
 }
 
 class _ProfessionnelEditPageState extends State<ProfessionnelEditPage> {
@@ -33,13 +42,11 @@ class _ProfessionnelEditPageState extends State<ProfessionnelEditPage> {
 
     if (widget.professionnel != null) {
       _nomController.text = widget.professionnel!['nom'] ?? '';
-
       _societeController.text = widget.professionnel!['societe'] ?? '';
-
-      _professionController.text = widget.professionnel!['profession'] ?? '';
-
-      _telephoneController.text = widget.professionnel!['telephone'] ?? '';
-
+      _professionController.text =
+          widget.professionnel!['profession'] ?? '';
+      _telephoneController.text =
+          widget.professionnel!['telephone'] ?? '';
       _emailController.text = widget.professionnel!['email'] ?? '';
     }
 
@@ -68,16 +75,17 @@ class _ProfessionnelEditPageState extends State<ProfessionnelEditPage> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
+
     return Scaffold(
-      backgroundColor: const Color(0xFF159E9E),
+      backgroundColor: widget.appSettings.themeColor,
 
       appBar: AppBar(
-        backgroundColor: const Color(0xFF159E9E),
+        backgroundColor: widget.appSettings.themeColor,
         foregroundColor: Colors.white,
         elevation: 0,
-
         title: Text(
-          isEditing ? 'Modifier Professionnel' : 'Professionnel',
+          isEditing ? '${t.edit} ${t.professional}' : t.professional,
           style: const TextStyle(fontSize: 25),
         ),
       ),
@@ -87,19 +95,22 @@ class _ProfessionnelEditPageState extends State<ProfessionnelEditPage> {
           key: _formKey,
 
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 10,
+            ),
 
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildLabel('Nom *'),
+                _buildLabel('${t.professional} *'),
 
                 _buildTextField(
                   controller: _nomController,
-                  hint: 'Nom du professionnel',
+                  hint: t.professionalName,
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
-                      return 'Le nom est obligatoire';
+                      return t.professionalNameRequired;
                     }
 
                     return null;
@@ -108,39 +119,39 @@ class _ProfessionnelEditPageState extends State<ProfessionnelEditPage> {
 
                 const SizedBox(height: 15),
 
-                _buildLabel('Société'),
+                _buildLabel(t.company),
 
                 _buildTextField(
                   controller: _societeController,
-                  hint: 'Société',
+                  hint: t.company,
                 ),
 
                 const SizedBox(height: 15),
 
-                _buildLabel('Profession'),
+                _buildLabel(t.profession),
 
                 _buildTextField(
                   controller: _professionController,
-                  hint: 'Profession',
+                  hint: t.profession,
                 ),
 
                 const SizedBox(height: 15),
 
-                _buildLabel('Téléphone'),
+                _buildLabel(t.phone),
 
                 _buildTextField(
                   controller: _telephoneController,
-                  hint: 'Téléphone',
+                  hint: t.phone,
                   keyboardType: TextInputType.phone,
                 ),
 
                 const SizedBox(height: 15),
 
-                _buildLabel('Email'),
+                _buildLabel(t.email),
 
                 _buildTextField(
                   controller: _emailController,
-                  hint: 'Email',
+                  hint: t.email,
                   keyboardType: TextInputType.emailAddress,
                 ),
 
@@ -150,16 +161,25 @@ class _ProfessionnelEditPageState extends State<ProfessionnelEditPage> {
                   width: double.infinity,
                   height: 50,
                   child: ElevatedButton.icon(
-                    onPressed: _viewModel.isSaving ? null : _enregistrer,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: widget.appSettings.themeColor,
+                      foregroundColor: Colors.white,
+                    ),
+                    onPressed:
+                        _viewModel.isSaving ? null : _enregistrer,
                     icon: _viewModel.isSaving
                         ? const SizedBox(
                             width: 20,
                             height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                            ),
                           )
                         : const Icon(Icons.check),
                     label: Text(
-                      _viewModel.isSaving ? 'Enregistrement...' : 'Enregistrer',
+                      _viewModel.isSaving
+                          ? t.saving
+                          : t.save,
                       style: const TextStyle(fontSize: 20),
                     ),
                   ),
@@ -181,9 +201,9 @@ class _ProfessionnelEditPageState extends State<ProfessionnelEditPage> {
                             Navigator.pop(context);
                           },
                     icon: const Icon(Icons.close),
-                    label: const Text(
-                      'Annuler',
-                      style: TextStyle(fontSize: 20),
+                    label: Text(
+                      t.cancel,
+                      style: const TextStyle(fontSize: 20),
                     ),
                   ),
                 ),
@@ -224,7 +244,6 @@ class _ProfessionnelEditPageState extends State<ProfessionnelEditPage> {
 
       decoration: InputDecoration(
         hintText: hint,
-
         filled: true,
         fillColor: Colors.white,
 
@@ -247,30 +266,37 @@ class _ProfessionnelEditPageState extends State<ProfessionnelEditPage> {
     }
 
     final professionnel = Professionnel(
-  idProfessionnel: _getExistingId(),
-  nom: _nomController.text.trim(),
-  societe: _societeController.text.trim(),
-  fonction: _professionController.text.trim(),
-  telephone: _telephoneController.text.trim(),
-  email: _emailController.text.trim(),
-);
+      idProfessionnel: _getExistingId(),
+      nom: _nomController.text.trim(),
+      societe: _societeController.text.trim(),
+      fonction: _professionController.text.trim(),
+      telephone: _telephoneController.text.trim(),
+      email: _emailController.text.trim(),
+    );
 
     final bool success;
 
     if (isEditing) {
-      success = await _viewModel.modifierProfessionnel(professionnel);
+      success =
+          await _viewModel.modifierProfessionnel(professionnel);
     } else {
-      success = await _viewModel.ajouterProfessionnel(professionnel);
+      success =
+          await _viewModel.ajouterProfessionnel(professionnel);
     }
 
     if (!mounted) return;
 
     if (!success) {
+      final t = AppLocalizations.of(context);
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(_viewModel.errorMessage ?? 'Une erreur est survenue.'),
+          content: Text(
+            _viewModel.errorMessage ?? t.unexpectedError,
+          ),
         ),
       );
+
       return;
     }
 
@@ -299,6 +325,4 @@ class _ProfessionnelEditPageState extends State<ProfessionnelEditPage> {
 
     return int.tryParse(id);
   }
-
-  
 }

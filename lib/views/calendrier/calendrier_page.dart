@@ -1,13 +1,21 @@
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 
+import '../../app_localizations.dart';
+import '../../app_settings.dart';
 import '../../models/rendez_vous.dart';
 import '../../viewmodels/calendrier_viewmodel.dart';
 import '../rendez_vous/rendez_vous_edit_page.dart';
 
 class CalendrierPage extends StatefulWidget {
-  const CalendrierPage({super.key});
+  final AppSettings appSettings;
+
+  const CalendrierPage({
+    super.key,
+    required this.appSettings,
+  });
 
   @override
   State<CalendrierPage> createState() => _CalendrierPageState();
@@ -72,7 +80,7 @@ class _CalendrierPageState extends State<CalendrierPage> {
   }
 
   // ============================================================
-  // GESTION DES DATES
+  // DATES
   // ============================================================
 
   DateTime? _convertirDate(String date) {
@@ -87,10 +95,7 @@ class _CalendrierPageState extends State<CalendrierPage> {
     return null;
   }
 
-  bool _memeJour(
-    RendezVous rdv,
-    DateTime jour,
-  ) {
+  bool _memeJour(RendezVous rdv, DateTime jour) {
     final date = _convertirDate(rdv.dateRDV);
 
     if (date == null) {
@@ -110,18 +115,27 @@ class _CalendrierPageState extends State<CalendrierPage> {
     return DateFormat('dd/MM/yyyy').format(dateConvertie);
   }
 
+  String _formaterHeure(String heure) {
+    try {
+      final parsedTime = DateFormat('HH:mm').parse(heure);
+
+      if (widget.appSettings.parametres.formatHeure == '12h') {
+        return DateFormat('h:mm a').format(parsedTime);
+      }
+
+      return DateFormat('HH:mm').format(parsedTime);
+    } catch (_) {
+      return heure;
+    }
+  }
+
   List<RendezVous> get rendezVousDuJour {
     if (_selectedDay == null) {
       return [];
     }
 
     return _viewModel.rendezVous
-        .where(
-          (rdv) => _memeJour(
-            rdv,
-            _selectedDay!,
-          ),
-        )
+        .where((rdv) => _memeJour(rdv, _selectedDay!))
         .toList();
   }
 
@@ -130,21 +144,57 @@ class _CalendrierPageState extends State<CalendrierPage> {
   // ============================================================
 
   String _afficherContact(RendezVous rdv) {
+  final t = AppLocalizations.of(context);
+
+  if (rdv.typeRDV == 'Professionnel') {
     return _viewModel.getContactName(rdv);
   }
 
+  if (rdv.typeRDV == 'Medical') {
+    return _viewModel.getContactName(rdv);
+  }
+
+  if (rdv.typeRDV == 'Private' ||
+      rdv.typeRDV == 'Prive' ||
+      rdv.typeRDV == 'Privé') {
+    return t.privateAppointment;
+  }
+
+  return _viewModel.getContactName(rdv);
+}
+// ============================================================
+// TYPE DE RENDEZ-VOUS
+// ============================================================
+
+String _afficherType(String type, AppLocalizations t) {
+  switch (type) {
+    case 'Professionnel':
+      return t.professional;
+
+    case 'Medical':
+      return t.medical;
+
+    case 'Private':
+    case 'Prive':
+    case 'Privé':
+      return t.privateAppointment;
+
+    default:
+      return type;
+  }
+}
   // ============================================================
   // STATUT
   // ============================================================
 
-  String _afficherStatut(String statut) {
+  String _afficherStatut(String statut, AppLocalizations t) {
     switch (statut) {
       case 'Planifie':
-        return 'Planifié';
+        return t.scheduled;
       case 'Termine':
-        return 'Terminé';
+        return t.completed;
       case 'Annule':
-        return 'Annulé';
+        return t.cancelled;
       default:
         return statut;
     }
@@ -163,7 +213,10 @@ class _CalendrierPageState extends State<CalendrierPage> {
     }
   }
 
-  Widget _buildStatutBadge(String statut) {
+  Widget _buildStatutBadge(
+    String statut,
+    AppLocalizations t,
+  ) {
     final couleur = _couleurStatut(statut);
 
     return Container(
@@ -179,7 +232,7 @@ class _CalendrierPageState extends State<CalendrierPage> {
         ),
       ),
       child: Text(
-        _afficherStatut(statut),
+        _afficherStatut(statut, t),
         style: TextStyle(
           color: couleur,
           fontWeight: FontWeight.bold,
@@ -193,7 +246,10 @@ class _CalendrierPageState extends State<CalendrierPage> {
   // FAVORI
   // ============================================================
 
-  Future<void> _changerFavori(RendezVous rdv) async {
+  Future<void> _changerFavori(
+    RendezVous rdv,
+    AppLocalizations t,
+  ) async {
     final nouveauFavori = !rdv.estFavori;
 
     final success = await _viewModel.modifierFavori(
@@ -220,8 +276,8 @@ class _CalendrierPageState extends State<CalendrierPage> {
       SnackBar(
         content: Text(
           nouveauFavori
-              ? 'Rendez-vous ajouté aux favoris.'
-              : 'Rendez-vous retiré des favoris.',
+              ? t.favoriteAdded
+              : t.favoriteRemoved,
         ),
         duration: const Duration(seconds: 1),
       ),
@@ -232,7 +288,10 @@ class _CalendrierPageState extends State<CalendrierPage> {
   // MODIFICATION DU STATUT
   // ============================================================
 
-  Future<void> _afficherMenuStatut(RendezVous rdv) async {
+  Future<void> _afficherMenuStatut(
+    RendezVous rdv,
+    AppLocalizations t,
+  ) async {
     final statutSelectionne = await showModalBottomSheet<String>(
       context: context,
       builder: (context) {
@@ -240,11 +299,11 @@ class _CalendrierPageState extends State<CalendrierPage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Padding(
-                padding: EdgeInsets.all(16),
+              Padding(
+                padding: const EdgeInsets.all(16),
                 child: Text(
-                  'Modifier le statut',
-                  style: TextStyle(
+                  t.modifyStatus,
+                  style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                   ),
@@ -256,15 +315,12 @@ class _CalendrierPageState extends State<CalendrierPage> {
                   Icons.schedule,
                   color: Colors.blue,
                 ),
-                title: const Text('Planifié'),
+                title: Text(t.scheduled),
                 trailing: rdv.statut == 'Planifie'
                     ? const Icon(Icons.check)
                     : null,
                 onTap: () {
-                  Navigator.pop(
-                    context,
-                    'Planifie',
-                  );
+                  Navigator.pop(context, 'Planifie');
                 },
               ),
 
@@ -273,15 +329,12 @@ class _CalendrierPageState extends State<CalendrierPage> {
                   Icons.check_circle,
                   color: Colors.green,
                 ),
-                title: const Text('Terminé'),
+                title: Text(t.completed),
                 trailing: rdv.statut == 'Termine'
                     ? const Icon(Icons.check)
                     : null,
                 onTap: () {
-                  Navigator.pop(
-                    context,
-                    'Termine',
-                  );
+                  Navigator.pop(context, 'Termine');
                 },
               ),
 
@@ -290,15 +343,12 @@ class _CalendrierPageState extends State<CalendrierPage> {
                   Icons.cancel,
                   color: Colors.red,
                 ),
-                title: const Text('Annulé'),
+                title: Text(t.cancelled),
                 trailing: rdv.statut == 'Annule'
                     ? const Icon(Icons.check)
                     : null,
                 onTap: () {
-                  Navigator.pop(
-                    context,
-                    'Annule',
-                  );
+                  Navigator.pop(context, 'Annule');
                 },
               ),
 
@@ -337,7 +387,8 @@ class _CalendrierPageState extends State<CalendrierPage> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          'Statut modifié : ${_afficherStatut(statutSelectionne)}.',
+          '${t.statusModified} : '
+          '${_afficherStatut(statutSelectionne, t)}.',
         ),
         duration: const Duration(seconds: 1),
       ),
@@ -350,7 +401,7 @@ class _CalendrierPageState extends State<CalendrierPage> {
 
   Widget _buildCalendrier() {
     return TableCalendar<RendezVous>(
-      locale: 'fr_FR',
+      locale: Localizations.localeOf(context).toString(),
 
       firstDay: DateTime(2020),
       lastDay: DateTime(2100),
@@ -358,27 +409,16 @@ class _CalendrierPageState extends State<CalendrierPage> {
       focusedDay: _focusedDay,
 
       selectedDayPredicate: (day) {
-        return isSameDay(
-          _selectedDay,
-          day,
-        );
+        return isSameDay(_selectedDay, day);
       },
 
       eventLoader: (day) {
         return _viewModel.rendezVous
-            .where(
-              (rdv) => _memeJour(
-                rdv,
-                day,
-              ),
-            )
+            .where((rdv) => _memeJour(rdv, day))
             .toList();
       },
 
-      onDaySelected: (
-        selectedDay,
-        focusedDay,
-      ) {
+      onDaySelected: (selectedDay, focusedDay) {
         setState(() {
           _selectedDay = selectedDay;
           _focusedDay = focusedDay;
@@ -390,16 +430,16 @@ class _CalendrierPageState extends State<CalendrierPage> {
         _focusedDay = focusedDay;
       },
 
-      calendarStyle: const CalendarStyle(
-        todayDecoration: BoxDecoration(
+      calendarStyle: CalendarStyle(
+        todayDecoration: const BoxDecoration(
           color: Colors.orange,
           shape: BoxShape.circle,
         ),
         selectedDecoration: BoxDecoration(
-          color: Color(0xFF159E9E),
+          color: widget.appSettings.themeColor,
           shape: BoxShape.circle,
         ),
-        markerDecoration: BoxDecoration(
+        markerDecoration: const BoxDecoration(
           color: Colors.red,
           shape: BoxShape.circle,
         ),
@@ -423,10 +463,12 @@ class _CalendrierPageState extends State<CalendrierPage> {
   }
 
   // ============================================================
-  // DÉTAILS DU RENDEZ-VOUS
+  // DÉTAILS
   // ============================================================
 
-  Widget _buildDetailsRendezVous() {
+  Widget _buildDetailsRendezVous(
+    AppLocalizations t,
+  ) {
     if (_selectedRendezVous == null) {
       return const SizedBox.shrink();
     }
@@ -443,9 +485,9 @@ class _CalendrierPageState extends State<CalendrierPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Détails du rendez-vous',
-              style: TextStyle(
+            Text(
+              t.appointmentDetails,
+              style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
               ),
@@ -455,50 +497,51 @@ class _CalendrierPageState extends State<CalendrierPage> {
 
             _detailRow(
               Icons.calendar_today,
-              'Date',
+              t.detailsDate,
               _formaterDate(rdv.dateRDV),
             ),
 
             _detailRow(
               Icons.access_time,
-              'Horaire',
-              '${rdv.heureDebut} - ${rdv.heureFin}',
+              t.time,
+              '${_formaterHeure(rdv.heureDebut)} - '
+              '${_formaterHeure(rdv.heureFin)}',
             ),
 
             _detailRow(
-              Icons.category,
-              'Type',
-              rdv.typeRDV,
-            ),
+  Icons.category,
+  t.type,
+  _afficherType(rdv.typeRDV, t),
+),
 
             _detailRow(
               Icons.title,
-              'Titre',
+              t.title,
               rdv.titre,
             ),
 
             _detailRow(
               Icons.info_outline,
-              'Statut',
-              _afficherStatut(rdv.statut),
+              t.status,
+              _afficherStatut(rdv.statut, t),
             ),
 
             _detailRow(
               rdv.estFavori
                   ? Icons.star
                   : Icons.star_border,
-              'Favori',
-              rdv.estFavori ? 'Oui' : 'Non',
+              t.favorite,
+              rdv.estFavori ? t.yes : t.no,
             ),
 
             if (_afficherContact(rdv).isNotEmpty)
               _detailRow(
                 Icons.person,
                 rdv.typeRDV == 'Medical'
-                    ? 'Docteur'
+                    ? t.detailsDoctor
                     : rdv.typeRDV == 'Professionnel'
-                        ? 'Professionnel'
-                        : 'Contact',
+                        ? t.detailsProfessional
+                        : t.detailsContactGeneric,
                 _afficherContact(rdv),
               ),
 
@@ -506,7 +549,7 @@ class _CalendrierPageState extends State<CalendrierPage> {
                 rdv.lieu!.trim().isNotEmpty)
               _detailRow(
                 Icons.location_on,
-                'Lieu',
+                t.detailsPlace,
                 rdv.lieu!,
               ),
 
@@ -514,7 +557,7 @@ class _CalendrierPageState extends State<CalendrierPage> {
                 rdv.description!.trim().isNotEmpty)
               _detailRow(
                 Icons.description,
-                'Description',
+                t.detailsDescription,
                 rdv.description!,
               ),
           ],
@@ -531,13 +574,12 @@ class _CalendrierPageState extends State<CalendrierPage> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 9),
       child: Row(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(
             icon,
             size: 20,
-            color: const Color(0xFF159E9E),
+            color: widget.appSettings.themeColor,
           ),
 
           const SizedBox(width: 10),
@@ -561,17 +603,19 @@ class _CalendrierPageState extends State<CalendrierPage> {
   }
 
   // ============================================================
-  // TABLE DES RENDEZ-VOUS
+  // TABLE
   // ============================================================
 
-  Widget _buildRendezVousTable() {
+  Widget _buildRendezVousTable(
+    AppLocalizations t,
+  ) {
     final rdvs = rendezVousDuJour;
 
     if (rdvs.isEmpty) {
-      return const Center(
+      return Center(
         child: Text(
-          'Aucun rendez-vous pour cette date.',
-          style: TextStyle(
+          t.noAppointmentsForDate,
+          style: const TextStyle(
             fontSize: 16,
             color: Colors.grey,
           ),
@@ -587,46 +631,25 @@ class _CalendrierPageState extends State<CalendrierPage> {
 
           headingRowColor:
               WidgetStateProperty.all(
-            const Color(0xFF159E9E),
+            widget.appSettings.themeColor,
           ),
 
-          headingTextStyle:
-              const TextStyle(
+          headingTextStyle: const TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
           ),
 
-          columns: const [
-            DataColumn(
-              label: Text('Date'),
-            ),
-            DataColumn(
-              label: Text('Début'),
-            ),
-            DataColumn(
-              label: Text('Fin'),
-            ),
-            DataColumn(
-              label: Text('Type'),
-            ),
-            DataColumn(
-              label: Text('Titre'),
-            ),
-            DataColumn(
-              label: Text('Contact'),
-            ),
-            DataColumn(
-              label: Text('Lieu'),
-            ),
-            DataColumn(
-              label: Text('Description'),
-            ),
-            DataColumn(
-              label: Text('Favori'),
-            ),
-            DataColumn(
-              label: Text('Statut'),
-            ),
+          columns: [
+            DataColumn(label: Text(t.date)),
+            DataColumn(label: Text(t.start)),
+            DataColumn(label: Text(t.end)),
+            DataColumn(label: Text(t.type)),
+            DataColumn(label: Text(t.title)),
+            DataColumn(label: Text(t.contact)),
+            DataColumn(label: Text(t.location)),
+            DataColumn(label: Text(t.description)),
+            DataColumn(label: Text(t.favorite)),
+            DataColumn(label: Text(t.status)),
           ],
 
           rows: rdvs.map((rdv) {
@@ -645,32 +668,29 @@ class _CalendrierPageState extends State<CalendrierPage> {
 
               cells: [
                 DataCell(
-                  Text(
-                    _formaterDate(
-                      rdv.dateRDV,
-                    ),
-                  ),
+                  Text(_formaterDate(rdv.dateRDV)),
                 ),
 
                 DataCell(
-                  Text(rdv.heureDebut),
+                  Text(_formaterHeure(rdv.heureDebut)),
                 ),
 
                 DataCell(
-                  Text(rdv.heureFin),
+                  Text(_formaterHeure(rdv.heureFin)),
                 ),
 
                 DataCell(
-                  Text(rdv.typeRDV),
-                ),
+  Text(
+    _afficherType(rdv.typeRDV, t),
+  ),
+),
 
                 DataCell(
                   SizedBox(
                     width: 160,
                     child: Text(
                       rdv.titre,
-                      overflow:
-                          TextOverflow.ellipsis,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ),
@@ -680,8 +700,7 @@ class _CalendrierPageState extends State<CalendrierPage> {
                     width: 230,
                     child: Text(
                       _afficherContact(rdv),
-                      overflow:
-                          TextOverflow.ellipsis,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ),
@@ -691,8 +710,7 @@ class _CalendrierPageState extends State<CalendrierPage> {
                     width: 150,
                     child: Text(
                       rdv.lieu ?? '',
-                      overflow:
-                          TextOverflow.ellipsis,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ),
@@ -702,8 +720,7 @@ class _CalendrierPageState extends State<CalendrierPage> {
                     width: 250,
                     child: Text(
                       rdv.description ?? '',
-                      overflow:
-                          TextOverflow.ellipsis,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ),
@@ -712,8 +729,8 @@ class _CalendrierPageState extends State<CalendrierPage> {
                 DataCell(
                   IconButton(
                     tooltip: rdv.estFavori
-                        ? 'Retirer des favoris'
-                        : 'Ajouter aux favoris',
+                        ? t.removeFromFavorites
+                        : t.addToFavorites,
                     icon: Icon(
                       rdv.estFavori
                           ? Icons.star
@@ -723,7 +740,7 @@ class _CalendrierPageState extends State<CalendrierPage> {
                           : Colors.grey,
                     ),
                     onPressed: () {
-                      _changerFavori(rdv);
+                      _changerFavori(rdv, t);
                     },
                   ),
                 ),
@@ -732,12 +749,13 @@ class _CalendrierPageState extends State<CalendrierPage> {
                 DataCell(
                   InkWell(
                     onTap: () {
-                      _afficherMenuStatut(rdv);
+                      _afficherMenuStatut(rdv, t);
                     },
                     borderRadius:
                         BorderRadius.circular(20),
                     child: _buildStatutBadge(
                       rdv.statut,
+                      t,
                     ),
                   ),
                 ),
@@ -760,6 +778,7 @@ class _CalendrierPageState extends State<CalendrierPage> {
         builder: (context) => RendezVousEditPage(
           initialDate:
               _selectedDay ?? _focusedDay,
+          appSettings: widget.appSettings,
         ),
       ),
     );
@@ -773,13 +792,13 @@ class _CalendrierPageState extends State<CalendrierPage> {
   // MODIFIER
   // ============================================================
 
-  Future<void> _modifierRendezVous() async {
+  Future<void> _modifierRendezVous(
+    AppLocalizations t,
+  ) async {
     if (_selectedRendezVous == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Veuillez sélectionner un rendez-vous.',
-          ),
+        SnackBar(
+          content: Text(t.selectAppointment),
         ),
       );
 
@@ -791,6 +810,7 @@ class _CalendrierPageState extends State<CalendrierPage> {
       MaterialPageRoute(
         builder: (context) => RendezVousEditPage(
           rendezVous: _selectedRendezVous,
+          appSettings: widget.appSettings,
         ),
       ),
     );
@@ -804,13 +824,13 @@ class _CalendrierPageState extends State<CalendrierPage> {
   // SUPPRIMER
   // ============================================================
 
-  Future<void> _supprimerRendezVous() async {
+  Future<void> _supprimerRendezVous(
+    AppLocalizations t,
+  ) async {
     if (_selectedRendezVous == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Veuillez sélectionner un rendez-vous.',
-          ),
+        SnackBar(
+          content: Text(t.selectAppointment),
         ),
       );
 
@@ -819,42 +839,34 @@ class _CalendrierPageState extends State<CalendrierPage> {
 
     final rdv = _selectedRendezVous!;
 
-    final confirmation =
-        await showDialog<bool>(
+    final confirmation = await showDialog<bool>(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text(
-            'Supprimer le rendez-vous',
-          ),
+          title: Text(t.deleteAppointment),
 
           content: Text(
-            'Voulez-vous vraiment supprimer le rendez-vous "${rdv.titre}" ?',
+            '${t.confirmDeleteAppointment} '
+            '"${rdv.titre}" ?',
           ),
 
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.pop(
-                  context,
-                  false,
-                );
+                Navigator.pop(context, false);
               },
-              child: const Text('Annuler'),
+              child: Text(t.cancel),
             ),
 
             ElevatedButton(
               onPressed: () {
-                Navigator.pop(
-                  context,
-                  true,
-                );
+                Navigator.pop(context, true);
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.red,
                 foregroundColor: Colors.white,
               ),
-              child: const Text('Supprimer'),
+              child: Text(t.deleteButton),
             ),
           ],
         );
@@ -877,7 +889,7 @@ class _CalendrierPageState extends State<CalendrierPage> {
         SnackBar(
           content: Text(
             _viewModel.errorMessage ??
-                'Erreur lors de la suppression.',
+                t.errorDeleting,
           ),
         ),
       );
@@ -890,10 +902,8 @@ class _CalendrierPageState extends State<CalendrierPage> {
     });
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Rendez-vous supprimé avec succès.',
-        ),
+      SnackBar(
+        content: Text(t.deletedSuccessfully),
       ),
     );
   }
@@ -904,20 +914,22 @@ class _CalendrierPageState extends State<CalendrierPage> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
+
     final dateSelectionnee =
         _selectedDay ?? DateTime.now();
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'Calendrier',
-          style: TextStyle(
+        title: Text(
+          t.calendar,
+          style: const TextStyle(
             fontWeight: FontWeight.bold,
           ),
         ),
 
         backgroundColor:
-            const Color(0xFF159E9E),
+            widget.appSettings.themeColor,
 
         foregroundColor: Colors.white,
 
@@ -930,134 +942,185 @@ class _CalendrierPageState extends State<CalendrierPage> {
       ),
 
       body: _viewModel.isLoading
-    ? const Center(
-        child: CircularProgressIndicator(),
-      )
-    : SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            children: [
-              // -----------------------------
-              // CALENDRIER
-              // -----------------------------
+          ? const Center(
+              child: CircularProgressIndicator(),
+            )
+          : SafeArea(
+              child: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(8),
+                      child: _buildCalendrier(),
+                    ),
 
-              Padding(
-                padding: const EdgeInsets.all(8),
-                child: _buildCalendrier(),
-              ),
+                    Container(
+                      width: double.infinity,
+                      padding:
+                          const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 10,
+                      ),
+                      color:
+                          const Color(0xFFE8F7F7),
+                      child: Text(
+                        '${t.todayAppointments} '
+                        '${DateFormat('dd/MM/yyyy').format(dateSelectionnee)}',
+                        style: const TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
 
-              // -----------------------------
-              // DATE SÉLECTIONNÉE
-              // -----------------------------
+                    _buildRendezVousTable(t),
 
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 10,
+                    _buildDetailsRendezVous(t),
+
+                    Padding(
+                      padding:
+                          const EdgeInsets.fromLTRB(
+                        12,
+                        6,
+                        12,
+                        12,
+                      ),
+                      child: Padding(
+                        padding:
+                            const EdgeInsets.fromLTRB(
+                          12,
+                          6,
+                          12,
+                          12,
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child:
+                                  ElevatedButton.icon(
+                                onPressed:
+                                    _ajouterRendezVous,
+                                icon: const Icon(
+                                  Icons.add,
+                                  size: 18,
+                                ),
+                                label: Text(
+                                  t.addButton,
+                                  style:
+                                      const TextStyle(
+                                    fontSize: 13,
+                                  ),
+                                ),
+                                style:
+                                    ElevatedButton
+                                        .styleFrom(
+                                  backgroundColor:
+                                      widget
+                                          .appSettings
+                                          .themeColor,
+                                  foregroundColor:
+                                      Colors.white,
+                                  minimumSize:
+                                      const Size(
+                                    0,
+                                    42,
+                                  ),
+                                  padding:
+                                      const EdgeInsets
+                                          .symmetric(
+                                    horizontal: 4,
+                                  ),
+                                ),
+                              ),
+                            ),
+
+                            const SizedBox(width: 6),
+
+                            Expanded(
+                              child:
+                                  ElevatedButton.icon(
+                                onPressed: () {
+                                  _modifierRendezVous(
+                                    t,
+                                  );
+                                },
+                                icon: const Icon(
+                                  Icons.edit,
+                                  size: 18,
+                                ),
+                                label: Text(
+                                  t.editButton,
+                                  style:
+                                      const TextStyle(
+                                    fontSize: 13,
+                                  ),
+                                ),
+                                style:
+                                    ElevatedButton
+                                        .styleFrom(
+                                  minimumSize:
+                                      const Size(
+                                    0,
+                                    42,
+                                  ),
+                                  padding:
+                                      const EdgeInsets
+                                          .symmetric(
+                                    horizontal: 4,
+                                  ),
+                                ),
+                              ),
+                            ),
+
+                            const SizedBox(width: 6),
+
+                            Expanded(
+                              child:
+                                  ElevatedButton.icon(
+                                onPressed: () {
+                                  _supprimerRendezVous(
+                                    t,
+                                  );
+                                },
+                                icon: const Icon(
+                                  Icons.delete,
+                                  size: 18,
+                                ),
+                                label: Text(
+                                  t.deleteButton,
+                                  style:
+                                      const TextStyle(
+                                    fontSize: 13,
+                                  ),
+                                ),
+                                style:
+                                    ElevatedButton
+                                        .styleFrom(
+                                  backgroundColor:
+                                      Colors.red,
+                                  foregroundColor:
+                                      Colors.white,
+                                  minimumSize:
+                                      const Size(
+                                    0,
+                                    42,
+                                  ),
+                                  padding:
+                                      const EdgeInsets
+                                          .symmetric(
+                                    horizontal: 4,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                color: const Color(0xFFE8F7F7),
-                child: Text(
-                  'Rendez-vous du ${DateFormat('dd/MM/yyyy').format(dateSelectionnee)}',
-                  style: const TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
               ),
-
-              // -----------------------------
-              // TABLE
-              // -----------------------------
-
-              _buildRendezVousTable(),
-
-              // -----------------------------
-              // DÉTAILS
-              // -----------------------------
-
-              _buildDetailsRendezVous(),
-
-              // -----------------------------
-              // BOUTONS
-              // -----------------------------
-
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  12,
-                  6,
-                  12,
-                  12,
-                ),
-                child: Padding(
-  padding: const EdgeInsets.fromLTRB(
-    12,
-    6,
-    12,
-    12,
-  ),
-  child: Row(
-    children: [
-      Expanded(
-        child: ElevatedButton.icon(
-          onPressed: _ajouterRendezVous,
-          icon: const Icon(Icons.add, size: 18),
-          label: const Text(
-            'Ajouter',
-            style: TextStyle(fontSize: 13),
-          ),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF159E9E),
-            foregroundColor: Colors.white,
-            minimumSize: const Size(0, 42),
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-          ),
-        ),
-      ),
-
-      const SizedBox(width: 6),
-
-      Expanded(
-        child: ElevatedButton.icon(
-          onPressed: _modifierRendezVous,
-          icon: const Icon(Icons.edit, size: 18),
-          label: const Text(
-            'Modifier',
-            style: TextStyle(fontSize: 13),
-          ),
-          style: ElevatedButton.styleFrom(
-            minimumSize: const Size(0, 42),
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-          ),
-        ),
-      ),
-
-      const SizedBox(width: 6),
-
-      Expanded(
-        child: ElevatedButton.icon(
-          onPressed: _supprimerRendezVous,
-          icon: const Icon(Icons.delete, size: 18),
-          label: const Text(
-            'Supprimer',
-            style: TextStyle(fontSize: 13),
-          ),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.red,
-            foregroundColor: Colors.white,
-            minimumSize: const Size(0, 42),
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-          ),
-        ),
-      ),
-    ],
-  ),
-),
-              ),
-            ],
-          ),
-        ),
-      ),
+            ),
     );
   }
 }

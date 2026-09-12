@@ -1,11 +1,19 @@
+
 import 'package:flutter/material.dart';
 
+import '../../app_settings.dart';
+import '../../app_localizations.dart';
 import '../../models/professionnel.dart';
 import '../../viewmodels/professionnel_viewmodel.dart';
 import 'professionnel_edit_page.dart';
 
 class ProfessionnelsPage extends StatefulWidget {
-  const ProfessionnelsPage({super.key});
+  final AppSettings appSettings;
+
+  const ProfessionnelsPage({
+    super.key,
+    required this.appSettings,
+  });
 
   @override
   State<ProfessionnelsPage> createState() => _ProfessionnelsPageState();
@@ -45,19 +53,21 @@ class _ProfessionnelsPageState extends State<ProfessionnelsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
+
     final professionnels = _viewModel.professionnels;
     final isLoading = _viewModel.isLoading;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF159E9E),
+      backgroundColor: widget.appSettings.themeColor,
 
       appBar: AppBar(
-        backgroundColor: const Color(0xFF159E9E),
+        backgroundColor: widget.appSettings.themeColor,
         foregroundColor: Colors.white,
         elevation: 0,
-        title: const Text(
-          'Professionnels',
-          style: TextStyle(fontSize: 28),
+        title: Text(
+          t.professionals,
+          style: const TextStyle(fontSize: 28),
         ),
       ),
 
@@ -76,10 +86,10 @@ class _ProfessionnelsPageState extends State<ProfessionnelsPage> {
                     ),
                   )
                 : professionnels.isEmpty
-                    ? const Center(
+                    ? Center(
                         child: Text(
-                          'Aucun professionnel',
-                          style: TextStyle(
+                          t.noProfessionals,
+                          style: const TextStyle(
                             color: Colors.white,
                             fontSize: 20,
                           ),
@@ -91,7 +101,8 @@ class _ProfessionnelsPageState extends State<ProfessionnelsPage> {
                         ),
                         itemCount: professionnels.length,
                         itemBuilder: (context, index) {
-                          final professionnel = professionnels[index];
+                          final professionnel =
+                              professionnels[index];
 
                           final isSelected =
                               selectedIndex == index;
@@ -105,7 +116,8 @@ class _ProfessionnelsPageState extends State<ProfessionnelsPage> {
 
                             child: Card(
                               color: isSelected
-                                  ? Colors.blue
+                                  ? widget.appSettings.themeColor
+                                      .withOpacity(0.8)
                                   : Colors.white.withOpacity(0.12),
 
                               child: Padding(
@@ -141,7 +153,7 @@ class _ProfessionnelsPageState extends State<ProfessionnelsPage> {
                                                         ?.isNotEmpty ==
                                                     true
                                                 ? professionnel.societe!
-                                                : 'Non renseignée',
+                                                : t.notProvided,
                                             style: const TextStyle(
                                               color: Colors.white,
                                               fontSize: 16,
@@ -168,7 +180,7 @@ class _ProfessionnelsPageState extends State<ProfessionnelsPage> {
                                                         ?.isNotEmpty ==
                                                     true
                                                 ? professionnel.fonction!
-                                                : 'Non renseignée',
+                                                : t.notProvided,
                                             style: const TextStyle(
                                               color: Colors.white,
                                               fontSize: 16,
@@ -195,7 +207,7 @@ class _ProfessionnelsPageState extends State<ProfessionnelsPage> {
                                                         ?.isNotEmpty ==
                                                     true
                                                 ? professionnel.telephone!
-                                                : 'Non renseigné',
+                                                : t.notProvided,
                                             style: const TextStyle(
                                               color: Colors.white,
                                               fontSize: 16,
@@ -222,7 +234,7 @@ class _ProfessionnelsPageState extends State<ProfessionnelsPage> {
                                                         ?.isNotEmpty ==
                                                     true
                                                 ? professionnel.email!
-                                                : 'Non renseigné',
+                                                : t.notProvided,
                                             style: const TextStyle(
                                               color: Colors.white,
                                               fontSize: 16,
@@ -255,15 +267,17 @@ class _ProfessionnelsPageState extends State<ProfessionnelsPage> {
                 // NOUVEAU
                 SizedBox(
                   width: double.infinity,
-
                   child: ElevatedButton.icon(
                     onPressed: _nouveauProfessionnel,
-
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor:
+                          widget.appSettings.themeColor,
+                      foregroundColor: Colors.white,
+                    ),
                     icon: const Icon(Icons.add),
-
-                    label: const Text(
-                      'Nouveau',
-                      style: TextStyle(fontSize: 20),
+                    label: Text(
+                      t.add,
+                      style: const TextStyle(fontSize: 20),
                     ),
                   ),
                 ),
@@ -273,17 +287,14 @@ class _ProfessionnelsPageState extends State<ProfessionnelsPage> {
                 // MODIFIER
                 SizedBox(
                   width: double.infinity,
-
                   child: ElevatedButton.icon(
                     onPressed: selectedIndex == null
                         ? null
                         : _modifierProfessionnel,
-
                     icon: const Icon(Icons.edit),
-
-                    label: const Text(
-                      'Modifier',
-                      style: TextStyle(fontSize: 20),
+                    label: Text(
+                      t.edit,
+                      style: const TextStyle(fontSize: 20),
                     ),
                   ),
                 ),
@@ -293,22 +304,18 @@ class _ProfessionnelsPageState extends State<ProfessionnelsPage> {
                 // SUPPRIMER
                 SizedBox(
                   width: double.infinity,
-
                   child: ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.red,
                       foregroundColor: Colors.white,
                     ),
-
                     onPressed: selectedIndex == null
                         ? null
                         : _supprimerProfessionnel,
-
                     icon: const Icon(Icons.delete),
-
-                    label: const Text(
-                      'Supprimer',
-                      style: TextStyle(fontSize: 20),
+                    label: Text(
+                      t.delete,
+                      style: const TextStyle(fontSize: 20),
                     ),
                   ),
                 ),
@@ -324,62 +331,70 @@ class _ProfessionnelsPageState extends State<ProfessionnelsPage> {
   // NOUVEAU PROFESSIONNEL
   // ==========================================
   Future<void> _nouveauProfessionnel() async {
-  await Navigator.push(
-    context,
-    MaterialPageRoute(
-      builder: (context) => const ProfessionnelEditPage(),
-    ),
-  );
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ProfessionnelEditPage(
+          appSettings: widget.appSettings,
+        ),
+      ),
+    );
 
-  if (!mounted) return;
+    if (!mounted) return;
 
-  setState(() {
-    selectedIndex = null;
-  });
+    setState(() {
+      selectedIndex = null;
+    });
 
-  await _chargerProfessionnels();
-}
+    await _chargerProfessionnels();
+  }
+
   // ==========================================
   // MODIFIER PROFESSIONNEL
   // ==========================================
   Future<void> _modifierProfessionnel() async {
-  if (selectedIndex == null) return;
+    if (selectedIndex == null) return;
 
-  final professionnels = _viewModel.professionnels;
-  final professionnelActuel = professionnels[selectedIndex!];
+    final professionnels = _viewModel.professionnels;
+    final professionnelActuel =
+        professionnels[selectedIndex!];
 
-  final professionnelMap = <String, String>{
-    'idProfessionnel':
-        professionnelActuel.idProfessionnel?.toString() ?? '',
-    'nom': professionnelActuel.nom,
-    'societe': professionnelActuel.societe,
-    'profession': professionnelActuel.fonction,
-    'telephone': professionnelActuel.telephone,
-    'email': professionnelActuel.email,
-  };
+    final professionnelMap = <String, String>{
+      'idProfessionnel':
+          professionnelActuel.idProfessionnel?.toString() ?? '',
+      'nom': professionnelActuel.nom,
+      'societe': professionnelActuel.societe,
+      'profession': professionnelActuel.fonction,
+      'telephone': professionnelActuel.telephone,
+      'email': professionnelActuel.email,
+    };
 
-  await Navigator.push(
-    context,
-    MaterialPageRoute(
-      builder: (context) => ProfessionnelEditPage(
-        professionnel: professionnelMap,
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ProfessionnelEditPage(
+          professionnel: professionnelMap,
+          appSettings: widget.appSettings,
+        ),
       ),
-    ),
-  );
+    );
 
-  if (!mounted) return;
+    if (!mounted) return;
 
-  setState(() {
-    selectedIndex = null;
-  });
+    setState(() {
+      selectedIndex = null;
+    });
 
-  await _chargerProfessionnels();
-}
+    await _chargerProfessionnels();
+  }
+
   // ==========================================
   // SUPPRIMER PROFESSIONNEL
   // ==========================================
   Future<void> _supprimerProfessionnel() async {
     if (selectedIndex == null) return;
+
+    final t = AppLocalizations.of(context);
 
     final professionnels = _viewModel.professionnels;
 
@@ -390,11 +405,10 @@ class _ProfessionnelsPageState extends State<ProfessionnelsPage> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Supprimer'),
+          title: Text(t.deleteProfessional),
 
           content: Text(
-            'Voulez-vous vraiment supprimer '
-            '${professionnel.nom} ?',
+            t.confirmDeleteProfessional,
           ),
 
           actions: [
@@ -402,16 +416,16 @@ class _ProfessionnelsPageState extends State<ProfessionnelsPage> {
               onPressed: () {
                 Navigator.pop(context, false);
               },
-              child: const Text('Annuler'),
+              child: Text(t.cancel),
             ),
 
             TextButton(
               onPressed: () {
                 Navigator.pop(context, true);
               },
-              child: const Text(
-                'Supprimer',
-                style: TextStyle(
+              child: Text(
+                t.delete,
+                style: const TextStyle(
                   color: Colors.red,
                 ),
               ),
@@ -435,8 +449,7 @@ class _ProfessionnelsPageState extends State<ProfessionnelsPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            _viewModel.errorMessage ??
-                'Erreur lors de la suppression du professionnel.',
+            t.errorDeletingProfessional,
           ),
         ),
       );
@@ -448,3 +461,4 @@ class _ProfessionnelsPageState extends State<ProfessionnelsPage> {
     });
   }
 }
+

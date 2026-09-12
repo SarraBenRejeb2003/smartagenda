@@ -1,11 +1,18 @@
 import 'package:flutter/material.dart';
 
+import '../../app_settings.dart';
+import '../../app_localizations.dart';
 import '../../models/docteur.dart';
 import '../../viewmodels/docteur_viewmodel.dart';
 import 'docteur_edit_page.dart';
 
 class DocteursPage extends StatefulWidget {
-  const DocteursPage({super.key});
+  final AppSettings appSettings;
+
+  const DocteursPage({
+    super.key,
+    required this.appSettings,
+  });
 
   @override
   State<DocteursPage> createState() => _DocteursPageState();
@@ -46,19 +53,21 @@ class _DocteursPageState extends State<DocteursPage> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
+
     final docteurs = _viewModel.docteurs;
     final isLoading = _viewModel.isLoading;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF159E9E),
+      backgroundColor: widget.appSettings.themeColor,
 
       appBar: AppBar(
-        backgroundColor: const Color(0xFF159E9E),
+        backgroundColor: widget.appSettings.themeColor,
         foregroundColor: Colors.white,
         elevation: 0,
-        title: const Text(
-          'Docteurs',
-          style: TextStyle(fontSize: 28),
+        title: Text(
+          t.doctors,
+          style: const TextStyle(fontSize: 28),
         ),
       ),
 
@@ -74,10 +83,10 @@ class _DocteursPageState extends State<DocteursPage> {
                     ),
                   )
                 : docteurs.isEmpty
-                    ? const Center(
+                    ? Center(
                         child: Text(
-                          'Aucun docteur',
-                          style: TextStyle(
+                          t.noDoctors,
+                          style: const TextStyle(
                             color: Colors.white,
                             fontSize: 20,
                           ),
@@ -102,13 +111,17 @@ class _DocteursPageState extends State<DocteursPage> {
                             },
                             child: Card(
                               color: isSelected
-                                  ? Colors.blue
+                                  ? widget.appSettings.themeColor
+                                      .withOpacity(0.8)
                                   : Colors.white.withOpacity(0.12),
+
                               child: Padding(
                                 padding: const EdgeInsets.all(12),
+
                                 child: Column(
                                   crossAxisAlignment:
                                       CrossAxisAlignment.start,
+
                                   children: [
                                     // NOM
                                     Text(
@@ -131,13 +144,14 @@ class _DocteursPageState extends State<DocteursPage> {
                                           size: 18,
                                         ),
                                         const SizedBox(width: 8),
+
                                         Expanded(
                                           child: Text(
                                             docteur.specialite
                                                         ?.isNotEmpty ==
                                                     true
                                                 ? docteur.specialite!
-                                                : 'Non renseignée',
+                                                : t.notProvided,
                                             style: const TextStyle(
                                               color: Colors.white,
                                               fontSize: 16,
@@ -158,13 +172,14 @@ class _DocteursPageState extends State<DocteursPage> {
                                           size: 18,
                                         ),
                                         const SizedBox(width: 8),
+
                                         Expanded(
                                           child: Text(
                                             docteur.telephone
                                                         ?.isNotEmpty ==
                                                     true
                                                 ? docteur.telephone!
-                                                : 'Non renseigné',
+                                                : t.notProvided,
                                             style: const TextStyle(
                                               color: Colors.white,
                                               fontSize: 16,
@@ -187,13 +202,14 @@ class _DocteursPageState extends State<DocteursPage> {
                                           size: 18,
                                         ),
                                         const SizedBox(width: 8),
+
                                         Expanded(
                                           child: Text(
                                             docteur.adresseCabinet
                                                         ?.isNotEmpty ==
                                                     true
                                                 ? docteur.adresseCabinet!
-                                                : 'Non renseignée',
+                                                : t.notProvided,
                                             style: const TextStyle(
                                               color: Colors.white,
                                               fontSize: 16,
@@ -219,36 +235,49 @@ class _DocteursPageState extends State<DocteursPage> {
             ),
             child: Column(
               children: [
+                // NOUVEAU
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
                     onPressed: _nouveauDocteur,
+
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor:
+                          widget.appSettings.themeColor,
+                      foregroundColor: Colors.white,
+                    ),
+
                     icon: const Icon(Icons.add),
-                    label: const Text(
-                      'Nouveau',
-                      style: TextStyle(fontSize: 20),
+
+                    label: Text(
+                      t.add,
+                      style: const TextStyle(fontSize: 20),
                     ),
                   ),
                 ),
 
                 const SizedBox(height: 8),
 
+                // MODIFIER
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
                     onPressed: selectedIndex == null
                         ? null
                         : _modifierDocteur,
+
                     icon: const Icon(Icons.edit),
-                    label: const Text(
-                      'Modifier',
-                      style: TextStyle(fontSize: 20),
+
+                    label: Text(
+                      t.edit,
+                      style: const TextStyle(fontSize: 20),
                     ),
                   ),
                 ),
 
                 const SizedBox(height: 8),
 
+                // SUPPRIMER
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
@@ -256,13 +285,16 @@ class _DocteursPageState extends State<DocteursPage> {
                       backgroundColor: Colors.red,
                       foregroundColor: Colors.white,
                     ),
+
                     onPressed: selectedIndex == null
                         ? null
                         : _supprimerDocteur,
+
                     icon: const Icon(Icons.delete),
-                    label: const Text(
-                      'Supprimer',
-                      style: TextStyle(fontSize: 20),
+
+                    label: Text(
+                      t.delete,
+                      style: const TextStyle(fontSize: 20),
                     ),
                   ),
                 ),
@@ -277,90 +309,110 @@ class _DocteursPageState extends State<DocteursPage> {
   // ============================
   // NOUVEAU DOCTEUR
   // ============================
- Future<void> _nouveauDocteur() async {
-  await Navigator.push(
-    context,
-    MaterialPageRoute(
-      builder: (context) => const DocteurEditPage(),
-    ),
-  );
 
-  if (!mounted) return;
+  Future<void> _nouveauDocteur() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => DocteurEditPage(
+          appSettings: widget.appSettings,
+        ),
+      ),
+    );
 
-  setState(() {
-    selectedIndex = null;
-  });
+    if (!mounted) return;
 
-  await _chargerDocteurs();
-}
+    setState(() {
+      selectedIndex = null;
+    });
+
+    await _chargerDocteurs();
+  }
+
   // ============================
   // MODIFIER DOCTEUR
   // ============================
- Future<void> _modifierDocteur() async {
-  if (selectedIndex == null) return;
 
-  final docteurs = _viewModel.docteurs;
-  final docteurActuel = docteurs[selectedIndex!];
+  Future<void> _modifierDocteur() async {
+    if (selectedIndex == null) return;
 
-  final docteurMap = <String, String>{
-    'idDocteur':
-        docteurActuel.idDocteur?.toString() ?? '',
-    'nom': docteurActuel.nom,
-    'specialite': docteurActuel.specialite ?? '',
-    'adresseCabinet':
-        docteurActuel.adresseCabinet ?? '',
-    'telephone': docteurActuel.telephone ?? '',
-  };
+    final docteurs = _viewModel.docteurs;
+    final docteurActuel = docteurs[selectedIndex!];
 
-  await Navigator.push(
-    context,
-    MaterialPageRoute(
-      builder: (context) => DocteurEditPage(
-        docteur: docteurMap,
+    final docteurMap = <String, String>{
+      'idDocteur':
+          docteurActuel.idDocteur?.toString() ?? '',
+      'nom': docteurActuel.nom,
+      'specialite':
+          docteurActuel.specialite ?? '',
+      'adresseCabinet':
+          docteurActuel.adresseCabinet ?? '',
+      'telephone':
+          docteurActuel.telephone ?? '',
+    };
+
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => DocteurEditPage(
+          docteur: docteurMap,
+          appSettings: widget.appSettings,
+        ),
       ),
-    ),
-  );
+    );
 
-  if (!mounted) return;
+    if (!mounted) return;
 
-  setState(() {
-    selectedIndex = null;
-  });
+    setState(() {
+      selectedIndex = null;
+    });
 
-  await _chargerDocteurs();
-}
+    await _chargerDocteurs();
+  }
+
   // ============================
   // SUPPRIMER DOCTEUR
   // ============================
+
   Future<void> _supprimerDocteur() async {
     if (selectedIndex == null) return;
+
+    final t = AppLocalizations.of(context);
 
     final docteurs = _viewModel.docteurs;
     final docteur = docteurs[selectedIndex!];
 
     final confirmation = await showDialog<bool>(
       context: context,
+
       builder: (context) {
         return AlertDialog(
-          title: const Text('Supprimer'),
+          title: Text(t.delete),
+
           content: Text(
-            'Voulez-vous vraiment supprimer '
-            '${docteur.nom} ?',
+            '${t.confirmDeleteDoctor}\n\n'
+            '${docteur.nom}',
           ),
+
           actions: [
             TextButton(
               onPressed: () {
                 Navigator.pop(context, false);
               },
-              child: const Text('Annuler'),
+
+              child: Text(t.cancel),
             ),
+
             TextButton(
               onPressed: () {
                 Navigator.pop(context, true);
               },
-              child: const Text(
-                'Supprimer',
-                style: TextStyle(color: Colors.red),
+
+              child: Text(
+                t.delete,
+                style: const TextStyle(
+                  color: Colors.red,
+                ),
               ),
             ),
           ],
@@ -382,10 +434,11 @@ class _DocteursPageState extends State<DocteursPage> {
         SnackBar(
           content: Text(
             _viewModel.errorMessage ??
-                'Erreur lors de la suppression du docteur.',
+                t.errorDeletingDoctor,
           ),
         ),
       );
+
       return;
     }
 
