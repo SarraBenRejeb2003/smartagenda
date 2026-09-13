@@ -1,6 +1,6 @@
 
 import 'package:flutter/material.dart';
-
+import '../smart_assistant/smart_assistant_page.dart';
 import '../../app_localizations.dart';
 import '../../viewmodels/accueil_viewmodel.dart';
 import '../professionnels/professionnels_page.dart';
@@ -153,6 +153,19 @@ class _AccueilPageState extends State<AccueilPage> {
                   );
                 },
               ),
+              _menuButton(
+  context,
+  icon: Icons.smart_toy_outlined,
+  text: 'Smart Assistant',
+  onTap: () {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const SmartAssistantPage(),
+      ),
+    );
+  },
+),
 
               _menuButton(
                 context,
